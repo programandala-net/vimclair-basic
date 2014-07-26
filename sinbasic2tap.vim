@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201407261837
+" Version A-00-201407262219
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -46,7 +46,7 @@ endfunction
 " ----------------------------------------------
 " Control structures
 
-function! SinBasicFlow()
+function! SinBasicControlStructures()
 
    " XXX TODO convert some control structures to GO TO.
    " From this:
@@ -70,7 +70,33 @@ function! SinBasicFlow()
    " Etc.
 
 
-  %substitute,^\s*do\n\(\_.\{-}\)\s*\<loop$,@do1:\r\1\rgo to @do1\r,i
+  " DO ... LOOP [WHILE|UNTIL]
+  call cursor(1,1) " Go to the top of the file.
+  while search('^\(do|\loop\)\>','Wc')
+      " XXX TODO count every occurrence to make nested loops possible
+    let l:doLine=line('.')
+    execute 'substitute,^do$,@do'.l:doLine.',i'
+    if search('^loop\>','Wc')
+      " XXX TODO exit after the first successful substitution
+      execute 'substitute,^loop\ \+while\s\+\(.\+\)$,if \1 then go to @do'.l:doLine.',i'
+      execute 'substitute,^loop\ \+until\s\+\(.\+\)$,if not \1 then go to @do'.l:doLine.',i'
+      execute 'substitute,^loop$,go to @do'.l:doLine.',i'
+    else
+      echo 'Error DO without LOOP at line '.doLine
+    endif
+  endwhile
+
+" XXX OLD  
+"  " DO ... LOOP UNTIL
+"  call cursor(1,1) " Go to the top of the file.
+"  while search('^do\n\_.\{-}\nloop\s\+until\s\+\(.\+\)$','Wc')
+"    execute 'substitute,^\s*do\n\(\_.\{-}\)\s*\<loop\s\+until\s\+\(.\+\)$,@do'.line('.').'\r\1\rif not \2 then go to @do'.line('.').'\r,i'
+"  endwhile
+"  " DO ... LOOP WHILE
+"  call cursor(1,1) " Go to the top of the file.
+"  while search('^do\n\_.\{-}\nloop\s\+while\s\+\(.\+\)$','Wc')
+"    execute 'substitute,^\s*do\n\(\_.\{-}\)\s*\<loop\s\+while\s\+\(.\+\)$,@do'.line('.').'\r\1\rif \2 then go to @do'.line('.').'\r,i'
+"  endwhile
 
 endfunction
 
@@ -372,11 +398,11 @@ function! SinBasic2tap()
   call SinBasicInclude()
   call SinBasicVim()
   call SinBasicClean()
-"  call SinBasicFlow()
-  call SinBasicLabels()
-  call SinBasicRenum()
-  call SinBasicChars()
-  call SinBasicTokens()
+  call SinBasicControlStructures()
+"  call SinBasicLabels()
+"  call SinBasicRenum()
+"  call SinBasicChars()
+"  call SinBasicTokens()
 
   silent w
   silent bw 
