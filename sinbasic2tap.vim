@@ -1,6 +1,8 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
+" Version A-00-201407261837
+
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
 " License: XXX TODO
@@ -8,46 +10,67 @@
 " This file is part of SinBasic:
 " http://programandala.net/en.program.sinbasic.html
 
-" This program, written in Vim, converts SinBasic source code
-" into an actual Sinclair BASIC program stored in a TAP file.
+" This program, written in Vim, converts SinBasic source code to an actual
+" Sinclair BASIC program stored in a TAP file.
 
-" ------------------------------
+" ----------------------------------------------
+" XXX TODO
+
+" use single quotes when possible
+
+" ----------------------------------------------
 " History
 
 " 2014-07-26: Started with the code of SinBasic2BB
 " (http://programandala.net/es.programa.bbim).
 "
 
-" ------------------------------
-" TODO
-
-
 " ----------------------------------------------
 
 function! SinBasicClean()
 
-  " Clean off all SinBasic stuff.
+  " Clean the source code.
 
   silent! %s/^\s*#.*$//e " Remove the metacomments
   silent! %s/\s*\/\/.*$//e " Remove the // line comments
   silent %s,^\s*\/\*\_.\{-}\*\/,,e " Remove the /* */ block comments
-
-  silent! %s/^\s*\d\+\s*$//e " Remove lines with the line number only
-  " 2012-01-29 xxx old:
-  "silent! %s/^\s\+//e " Remove empty lines
-  "silent! %s/\n\n\+/\r/eg " Remove empty lines
-  " 2012-01-29 xxx new, untested:
-  silent! %s/^\n//e " Remove empty lines
-
-  silent %s,^\s*\n,,ge " Remove the empty lines
-
-  silent! %s/^\s*//eg " Remove main indentation
-  silent! %s/\s\+$//eg " Remove ending blanks
-
-  silent! %s/\\\s*\n//e " Join the splitted lines
-  silent! %s/^\(\d\+\)\s\+/\1/e " Remove the space after the line number
+  silent! %s/^\s\+//e " Remove indentation
+  silent! %s/\s\+$//e " Remove trailing spaces
+  silent! %s/^\n//e " Remove the empty lines
+  silent! %s/\\\n//e " Join the splitted lines
 
   echo 'Source code cleaned.'
+
+endfunction
+
+" ----------------------------------------------
+" Control structures
+
+function! SinBasicFlow()
+
+   " XXX TODO convert some control structures to GO TO.
+   " From this:
+   "    do
+   "      exit if x
+   "    loop
+   " To this:
+   "    @do1
+   "      if x then goto @loop1
+   "    goto @do1
+   "    @loop1
+   " From this:
+   "    do
+   "      print
+   "    loop while x
+   " To this:
+   "    @do2
+   "      print
+   "    if x then goto @do2
+   "    @loop2
+   " Etc.
+
+
+  %substitute,^\s*do\n\(\_.\{-}\)\s*\<loop$,@do1:\r\1\rgo to @do1\r,i
 
 endfunction
 
@@ -94,7 +117,7 @@ function! SinBasicInclude()
     let l:includedFiles += 1
     let l:fileName=matchstr(getline('.'),'\S\+.*',8)
     call setline('.','') " Blank the line.
-    " ----------- xxx debug check
+    " ----------- XXX debug check
     "echo '#include ' l:fileName
     "echo 'getcwd()=' getcwd()
     "echo 'Modifications:'
@@ -143,50 +166,58 @@ endfunction
 
 function! SinBasicLabels()
 
-  " Join lonely labels to the next line:
-  silent %substitute,^\s*\(label\s\+\)\?\(@[0-9a-zA-Z_]\+\)\s*:\?\s*\n,\2:,ei
+  let l:ignoreCaseBackup=&ignorecase
+  set ignorecase
 
-  " Empty dictionary to store the line numbers of the labels; the labels will be used as keys:
+  " Join every lonely label to its following line
+  " (unless its following line has another label definition):
+  silent %substitute,^\(@[0-9a-zA-Z_]\+\)\s*:\?\n\([^@]\),\1:\2,ei
+
+  " Create an empty dictionary to store the line numbers of the labels;
+  " the labels will be used as keys:
   let l:lineNumber={}
-  call cursor(1,1) " Go to the top of the file.
-  " Store every label in the l:lineNumber dictionary:
-  while search('^\s*\(label\s\+\)\?@[0-9a-zA-Z_]\+\>','W')
-    " Store the label into register 'l':
+  
+  " Go to the top of the file:
+  call cursor(1,1)
+
+  " Search for label definitions and store them into the dictionary:
+  while search('^@[0-9a-zA-Z_]\+\>','W')
+    " Store the found label into register 'l':
     normal "l2yw
-    " xxx debug check
-    "echo 'Raw label found: <' . getreg('l',1) . '>'
-    " If 'label' is present, go to the next word and repeat:
-    if tolower(getreg('l',1))=='label @'
-      normal w"l2yw
-      " xxx debug check
-      "echo 'Actual raw label found: <' . getreg('l',1) . '>'
-    endif
-    " Remove possible ending spaces:
-    let l:label=tolower(substitute(getreg('l',1),' ','','g'))
-    " xxx debug check
-    "echo 'Clean label: <' . l:label . '>'
-    " Use the label as the key to store the line number:
+    " XXX debug check
+"    echo 'Raw label found: <' . getreg('l',1) . '>'
+"    let l:label=tolower(getreg('l',1))
+    let l:label=getreg('l',1)
+    " XXX debug check
+"    echo 'Clean label: <' . l:label . '>'
+    " Use the label as the key to its line number:
     let l:lineNumber[l:label]=line('.')+s:firstLine-1
     " Go to the next word:
     normal w
   endwhile
-  
-  " xxx debug check
-  "echo l:lineNumber
 
-  " Remove all labels:
-  silent! %substitute/^\s*\(label\s\+\)\?@[0-9a-zA-Z_]\+\s*:\?\s*//ei
+  " Remove all label definitions:
+  silent! %substitute/^@[0-9a-zA-Z_]\+\s*:\?\s*//ei
 
   " Substitute every label reference with its line number:
   for l:label in keys(l:lineNumber)
+    "echo "About to search for label " l:label
     call cursor(1,1) " Go to the top of the file.
-    " Do the subtitution:
-    while search(l:label,'Wc')
-      " xxx debug check
-      "echo l:label "label reference found"
-      execute "silent! substitute/".l:label."\\>/".l:lineNumber[l:label]."/ei"
+    " Do the subtitution: 
+    while search(l:label.'\>','Wc')
+      " XXX debug check
+"      echo l:label "label reference found"
+"      echo "About to translate it to " l:lineNumber[l:label]
+      "execute 'silent! substitute/\<'.l:label.'\>/'.l:lineNumber[l:label].'/ei'
+      execute 'substitute/'.l:label.'\>/'.l:lineNumber[l:label].'/i'
     endwhile
   endfor
+
+  if l:ignoreCaseBackup
+    set ignorecase
+  else
+    set noignorecase
+  endif
 
   echo 'Labels translated.'
 
@@ -224,6 +255,7 @@ endfunction
 function! SinBasicTokens()
   silent! %s@\<gosub\>@go sub@ge
   silent! %s@\<goto\>@go to@ge
+  silent! %s@\<deffn\>@def fn@ge
 endfunction
 
 " ----------------------------------------------
@@ -236,22 +268,22 @@ function! SinBasicGraphs()
   " Block graphics (chars 128-143)
 
   " XXX TODO
-  silent! %s@\\  @\=nr2char(128)@ge
-  silent! %s@\\ '@\=nr2char(129)@ge
-  silent! %s@\\' @\=nr2char(130)@ge
-  silent! %s@\\''@\=nr2char(131)@ge
-  silent! %s@\\ \.@\=nr2char(132)@ge
-  silent! %s@\\ :@\=nr2char(133)@ge
-  silent! %s@\\'\.@\=nr2char(134)@ge
-  silent! %s@\\':@\=nr2char(135)@ge
-  silent! %s@\\\. @\=nr2char(136)@ge
-  silent! %s@\\\.'@\=nr2char(137)@ge
-  silent! %s@\\: @\=nr2char(138)@ge
-  silent! %s@\\:'@\=nr2char(139)@ge
-  silent! %s@\\\.\.@\=nr2char(140)@ge
-  silent! %s@\\\.:@\=nr2char(141)@ge
-  silent! %s@\\:\.@\=nr2char(142)@ge
-  silent! %s@\\::@\=nr2char(143)@ge
+  silent! %s@\\  @{80}@ge
+  silent! %s@\\ '@{81}@ge
+  silent! %s@\\' @{82}@ge
+  silent! %s@\\''@{83}@ge
+  silent! %s@\\ \.@{84}@ge
+  silent! %s@\\ :@{85}@ge
+  silent! %s@\\'\.@{86}@ge
+  silent! %s@\\':@{87}@ge
+  silent! %s@\\\. @{88}@ge
+  silent! %s@\\\.'@{89}@ge
+  silent! %s@\\: @{8A}@ge
+  silent! %s@\\:'@{8B}@ge
+  silent! %s@\\\.\.@{8C}@ge
+  silent! %s@\\\.:@{8D}@ge
+  silent! %s@\\:\.@{8E}@ge
+  silent! %s@\\::@{8F}@ge
 
   " UDG (chars 144-164)
 
@@ -276,6 +308,11 @@ function! SinBasicGraphs()
   silent! %s@\\[Ss]@{S}@ge
   silent! %s@\\[Tt]@{T}@ge
   silent! %s@\\[Uu]@{U}@ge
+
+  " XXX TODO finish:
+
+  silent! %s@\\{vi}@{INVERSE 1}@ge
+  silent! %s@\\{vn}@{INVERSE 0}@ge
 
 endfunction
 
@@ -335,6 +372,7 @@ function! SinBasic2tap()
   call SinBasicInclude()
   call SinBasicVim()
   call SinBasicClean()
+"  call SinBasicFlow()
   call SinBasicLabels()
   call SinBasicRenum()
   call SinBasicChars()
