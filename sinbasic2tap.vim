@@ -1,7 +1,9 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201407262219
+" Version A-00-201407262324
+
+" Latest improvement: do-loop, do-loop until, do-loop while.
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -16,7 +18,8 @@
 " ----------------------------------------------
 " XXX TODO
 
-" use single quotes when possible
+" A lot.
+" Use single quotes when possible
 
 " ----------------------------------------------
 " History
@@ -69,20 +72,43 @@ function! SinBasicControlStructures()
    "    @loop2
    " Etc.
 
+  while search('^do\>','wc')
+    " DO found
+    let l:doLineNumber=line('.') " line number of the DO statement
+    " Convert the DO to a label:
+    execute 'substitute,^do$,@do'.l:doLineNumber.',i'
+    let l:unclosedLoops=1 " counter
+    while search('^\(do\|loop\)\>','W')
+      echo 'DO or LOOP found'
+      echo 'line: '.getline('.')
+      if strpart(getline('.'),1,2)=='do'
+        " DO
+        let l:unclosedLoops=l:unclosedLoops+1
+      else
+        " LOOP
+        let l:unclosedLoops=l:unclosedLoops-1
+        if l:unclosedLoops==0
+          let l:loopLine=getline('.')
+          echo '------ Right LOOP: '.l:loopLine
+          if match(l:loopLine,'^loop\s\+while\>')>-1
+            execute 'substitute,^loop\s\+while\s\+\(.\+\)$,if \1 then go to @do'.l:doLineNumber.',i'
+            break
+          elseif match(l:loopLine,'^loop\s\+until\>')>-1
 
-  " DO ... LOOP [WHILE|UNTIL]
-  call cursor(1,1) " Go to the top of the file.
-  while search('^\(do|\loop\)\>','Wc')
-      " XXX TODO count every occurrence to make nested loops possible
-    let l:doLine=line('.')
-    execute 'substitute,^do$,@do'.l:doLine.',i'
-    if search('^loop\>','Wc')
-      " XXX TODO exit after the first successful substitution
-      execute 'substitute,^loop\ \+while\s\+\(.\+\)$,if \1 then go to @do'.l:doLine.',i'
-      execute 'substitute,^loop\ \+until\s\+\(.\+\)$,if not \1 then go to @do'.l:doLine.',i'
-      execute 'substitute,^loop$,go to @do'.l:doLine.',i'
-    else
-      echo 'Error DO without LOOP at line '.doLine
+            execute 'substitute,^loop\s\+until\s\+\(.\+\)$,if not \1 then go to @do'.l:doLineNumber.',i'
+            break
+          elseif match(l:loopLine,'^loop$')>-1
+            execute 'substitute,^loop$,go to @do'.l:doLineNumber.',i'
+            break
+          else
+            echo 'Error: LOOP bad syntax at line '.line('.').'.'
+            break
+          endif
+        endif
+      endif
+    endwhile
+    if l:unclosedLoops
+      echo 'Error: DO without LOOP at line '.doLineNumber
     endif
   endwhile
 
