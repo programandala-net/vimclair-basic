@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201407262324
+" Version A-00-201407270001
 
 " Latest improvement: do-loop, do-loop until, do-loop while.
 
@@ -51,34 +51,27 @@ endfunction
 
 function! SinBasicControlStructures()
 
-   " XXX TODO convert some control structures to GO TO.
-   " From this:
-   "    do
-   "      exit if x
-   "    loop
-   " To this:
-   "    @do1
-   "      if x then goto @loop1
-   "    goto @do1
-   "    @loop1
-   " From this:
-   "    do
-   "      print
-   "    loop while x
-   " To this:
-   "    @do2
-   "      print
-   "    if x then goto @do2
-   "    @loop2
-   " Etc.
+  call SinBasicDoLoop()
 
-  while search('^do\>','wc')
-    " DO found
+endfunction
+
+function! SinBasicDoLoop()
+
+  " Convert all DO-LOOP structures.
+
+  " The SinBasic DO-LOOP structures are copied from Andy Wright's Beta BASIC,
+  " SAM BASIC and MasterBASIC: they allow UNTIL and WHILE in any combination
+  " (there are 5 possible combinations).
+
+  let l:doStatement=''
+
+  while search('^do\(\s\+\(until|\while\)\s\+.\+\)\?$','wc')
+    " first DO found
     let l:doLineNumber=line('.') " line number of the DO statement
-    " Convert the DO to a label:
-    execute 'substitute,^do$,@do'.l:doLineNumber.',i'
+    call SinBasicDo()
     let l:unclosedLoops=1 " counter
     while search('^\(do\|loop\)\>','W')
+      " DO or LOOP found
       echo 'DO or LOOP found'
       echo 'line: '.getline('.')
       if strpart(getline('.'),1,2)=='do'
@@ -88,22 +81,8 @@ function! SinBasicControlStructures()
         " LOOP
         let l:unclosedLoops=l:unclosedLoops-1
         if l:unclosedLoops==0
-          let l:loopLine=getline('.')
-          echo '------ Right LOOP: '.l:loopLine
-          if match(l:loopLine,'^loop\s\+while\>')>-1
-            execute 'substitute,^loop\s\+while\s\+\(.\+\)$,if \1 then go to @do'.l:doLineNumber.',i'
-            break
-          elseif match(l:loopLine,'^loop\s\+until\>')>-1
-
-            execute 'substitute,^loop\s\+until\s\+\(.\+\)$,if not \1 then go to @do'.l:doLineNumber.',i'
-            break
-          elseif match(l:loopLine,'^loop$')>-1
-            execute 'substitute,^loop$,go to @do'.l:doLineNumber.',i'
-            break
-          else
-            echo 'Error: LOOP bad syntax at line '.line('.').'.'
-            break
-          endif
+          call SinBasicLoop()
+          break
         endif
       endif
     endwhile
@@ -112,17 +91,62 @@ function! SinBasicControlStructures()
     endif
   endwhile
 
-" XXX OLD  
-"  " DO ... LOOP UNTIL
-"  call cursor(1,1) " Go to the top of the file.
-"  while search('^do\n\_.\{-}\nloop\s\+until\s\+\(.\+\)$','Wc')
-"    execute 'substitute,^\s*do\n\(\_.\{-}\)\s*\<loop\s\+until\s\+\(.\+\)$,@do'.line('.').'\r\1\rif not \2 then go to @do'.line('.').'\r,i'
-"  endwhile
-"  " DO ... LOOP WHILE
-"  call cursor(1,1) " Go to the top of the file.
-"  while search('^do\n\_.\{-}\nloop\s\+while\s\+\(.\+\)$','Wc')
-"    execute 'substitute,^\s*do\n\(\_.\{-}\)\s*\<loop\s\+while\s\+\(.\+\)$,@do'.line('.').'\r\1\rif \2 then go to @do'.line('.').'\r,i'
-"  endwhile
+endfunction
+
+function SinBasicDo()
+
+  " Open a DO-LOOP.
+
+  " Convert the DO to a label:
+  execute 'substitute,^do$,@do'.l:doLineNumber.',i'
+  
+  let l:doLine=getline('.')
+
+  " XXX TODO Get the actual DO (DO,DO UNTIL or DO WHILE).  If it's DO, the
+  " label is enough.  If it's DO UNTIL or DO WHILE, a conditional jump has to
+  " be inserted, but the destination line is still unknown.  The command has
+  " to be stored in l:doStatement in order to create it later in
+  " SinBasicLoop(), with the added line number.
+
+  if match(l:doLine,'^loop\s\+while\>')>-1
+    let l:doStatement='XXX'
+    "execute 'substitute,^loop\s\+while\s\+\(.\+\)$,if \1 then go to @do'.l:doLineNumber.',i'
+  elseif match(l:doLine,'^loop\s\+until\>')>-1
+    let l:doStatement='XXX'
+    "execute 'substitute,^loop\s\+until\s\+\(.\+\)$,if not (\1) then go to @do'.l:doLineNumber.',i'
+  elseif match(l:doLine,'^loop$')>-1
+    let l:doStatement=''
+  else
+    echo 'Error: LOOP bad syntax at line '.line('.').'.'
+  endif
+
+endfunction
+
+function SinBasicLoop()
+
+  " Close a DO-LOOP.
+
+  let l:loopLine=getline('.')
+  echo '------ Right LOOP: '.l:loopLine
+  if match(l:loopLine,'^loop\s\+while\>')>-1
+    execute 'substitute,^loop\s\+while\s\+\(.\+\)$,if \1 then go to @do'.l:doLineNumber.',i'
+  elseif match(l:loopLine,'^loop\s\+until\>')>-1
+
+    execute 'substitute,^loop\s\+until\s\+\(.\+\)$,if not (\1) then go to @do'.l:doLineNumber.',i'
+  elseif match(l:loopLine,'^loop$')>-1
+    execute 'substitute,^loop$,go to @do'.l:doLineNumber.',i'
+  else
+    echo 'Error: LOOP bad syntax at line '.line('.').'.'
+  endif
+
+  " Finish the DO if necessary:
+  if l:doStatement!=''
+    " Create a label after the end of the loop:
+    let l:exitLoopLabel='@loop'.l:doLineNumber
+    call append('.',l:exitLoopLabel)
+    " Complete and create the jump to it:
+    call append(l:doLineNumber,l:doStatement.l:exitLoopLabel)
+  endif
 
 endfunction
 
@@ -425,6 +449,7 @@ function! SinBasic2tap()
   call SinBasicVim()
   call SinBasicClean()
   call SinBasicControlStructures()
+" XXX TMP
 "  call SinBasicLabels()
 "  call SinBasicRenum()
 "  call SinBasicChars()
