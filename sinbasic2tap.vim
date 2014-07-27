@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201407270001
+" Version A-00-201407271424
 
 " Latest improvement: do-loop, do-loop until, do-loop while.
 
@@ -93,28 +93,31 @@ function! SinBasicDoLoop()
 
 endfunction
 
-function SinBasicDo()
+function! SinBasicDo()
 
   " Open a DO-LOOP.
 
-  " Convert the DO to a label:
-  execute 'substitute,^do$,@do'.l:doLineNumber.',i'
-  
+  " The loop start can be DO, DO UNTIL or DO WHILE.  If it's just DO, a label
+  " is enough.  If it's DO UNTIL or DO WHILE, a conditional jump has to be
+  " inserted, but the destination line is unknown until the correspondant LOOP
+  " is found.  Therefore the code in stored into l:doStatement in order to
+  " create it later (SinBasicLoop() does it), with the added line number.
+
+  " Save the original line: 
   let l:doLine=getline('.')
 
-  " XXX TODO Get the actual DO (DO,DO UNTIL or DO WHILE).  If it's DO, the
-  " label is enough.  If it's DO UNTIL or DO WHILE, a conditional jump has to
-  " be inserted, but the destination line is still unknown.  The command has
-  " to be stored in l:doStatement in order to create it later in
-  " SinBasicLoop(), with the added line number.
+  " Put a label instead:
+  call setline('.','@do'.l:doLineNumber)
 
-  if match(l:doLine,'^loop\s\+while\>')>-1
-    let l:doStatement='XXX'
-    "execute 'substitute,^loop\s\+while\s\+\(.\+\)$,if \1 then go to @do'.l:doLineNumber.',i'
-  elseif match(l:doLine,'^loop\s\+until\>')>-1
-    let l:doStatement='XXX'
-    "execute 'substitute,^loop\s\+until\s\+\(.\+\)$,if not (\1) then go to @do'.l:doLineNumber.',i'
-  elseif match(l:doLine,'^loop$')>-1
+  " Check the kind of DO and calculate the proper statement:
+  " Note: '\c' at the start of the patterns ignores case.
+  if match(l:doLine,'\c^do\s\+while\>')>-1
+    let l:condition=(l:doLine,matchend(l:doLine,'^do\s\+while\s\+'))
+    let l:doStatement='if not ('.l:condition.') then goto '
+  elseif match(l:doLine,'\c^do\s\+until\>')>-1
+    let l:condition=(l:doLine,matchend(l:doLine,'^do\s\+while\s\+'))
+    let l:doStatement='if '.l:condition.' then goto '
+  elseif match(l:doLine,'\c^loop$')>-1
     let l:doStatement=''
   else
     echo 'Error: LOOP bad syntax at line '.line('.').'.'
@@ -122,19 +125,19 @@ function SinBasicDo()
 
 endfunction
 
-function SinBasicLoop()
+function! SinBasicLoop()
 
   " Close a DO-LOOP.
 
   let l:loopLine=getline('.')
+  let l:jump='goto @do'.l:doLineNumber
   echo '------ Right LOOP: '.l:loopLine
   if match(l:loopLine,'^loop\s\+while\>')>-1
-    execute 'substitute,^loop\s\+while\s\+\(.\+\)$,if \1 then go to @do'.l:doLineNumber.',i'
+    execute 'substitute,^loop\s\+while\s\+\(.\+\)$,if \1 then '.l:jump.',i'
   elseif match(l:loopLine,'^loop\s\+until\>')>-1
-
-    execute 'substitute,^loop\s\+until\s\+\(.\+\)$,if not (\1) then go to @do'.l:doLineNumber.',i'
+    execute 'substitute,^loop\s\+until\s\+\(.\+\)$,if not (\1) then '.l:jump.',i'
   elseif match(l:loopLine,'^loop$')>-1
-    execute 'substitute,^loop$,go to @do'.l:doLineNumber.',i'
+    execute 'substitute,^loop$,'.l:jump.',i'
   else
     echo 'Error: LOOP bad syntax at line '.line('.').'.'
   endif
@@ -142,10 +145,11 @@ function SinBasicLoop()
   " Finish the DO if necessary:
   if l:doStatement!=''
     " Create a label after the end of the loop:
-    let l:exitLoopLabel='@loop'.l:doLineNumber
+    let l:exitLoopLabel='@loopExit'.l:doLineNumber
     call append('.',l:exitLoopLabel)
     " Complete and create the jump to it:
     call append(l:doLineNumber,l:doStatement.l:exitLoopLabel)
+    let l:doStatement=''
   endif
 
 endfunction
@@ -475,3 +479,5 @@ nmap <silent> ,sb :call SinBasic2tap()<CR>
 
 echo "SinBasic2tap loaded."
 echo "Activate it with the keys ',sb' (comma, S and B), in normal mode, on your SinBasic source."
+
+" vim:tw=78:ts=2:et:
