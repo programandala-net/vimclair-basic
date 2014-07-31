@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201407271424
+" Version A-00-201407310227
 
 " Latest improvement: do-loop, do-loop until, do-loop while.
 
@@ -25,8 +25,13 @@
 " History
 
 " 2014-07-26: Started with the code of SinBasic2BB
-" (http://programandala.net/es.programa.bbim).
-"
+" (http://programandala.net/es.programa.bbim). ,,Implemented: do...loop,
+" do...loop until, do...loop while.
+
+" 2014-07-27: First draft of do until...loop, do while...loop and nested
+" loops.
+
+" 2014-07-31: Fix: some local variable renamed to script variables.
 
 " ----------------------------------------------
 
@@ -63,11 +68,11 @@ function! SinBasicDoLoop()
   " SAM BASIC and MasterBASIC: they allow UNTIL and WHILE in any combination
   " (there are 5 possible combinations).
 
-  let l:doStatement=''
+  let s:doStatement=''
 
   while search('^do\(\s\+\(until|\while\)\s\+.\+\)\?$','wc')
     " first DO found
-    let l:doLineNumber=line('.') " line number of the DO statement
+    let s:doLineNumber=line('.') " line number of the DO statement
     call SinBasicDo()
     let l:unclosedLoops=1 " counter
     while search('^\(do\|loop\)\>','W')
@@ -100,25 +105,25 @@ function! SinBasicDo()
   " The loop start can be DO, DO UNTIL or DO WHILE.  If it's just DO, a label
   " is enough.  If it's DO UNTIL or DO WHILE, a conditional jump has to be
   " inserted, but the destination line is unknown until the correspondant LOOP
-  " is found.  Therefore the code in stored into l:doStatement in order to
+  " is found.  Therefore the code in stored into s:doStatement in order to
   " create it later (SinBasicLoop() does it), with the added line number.
 
   " Save the original line: 
   let l:doLine=getline('.')
 
   " Put a label instead:
-  call setline('.','@do'.l:doLineNumber)
+  call setline('.','@do'.s:doLineNumber)
 
   " Check the kind of DO and calculate the proper statement:
   " Note: '\c' at the start of the patterns ignores case.
   if match(l:doLine,'\c^do\s\+while\>')>-1
     let l:condition=(l:doLine,matchend(l:doLine,'^do\s\+while\s\+'))
-    let l:doStatement='if not ('.l:condition.') then goto '
+    let s:doStatement='if not ('.l:condition.') then goto '
   elseif match(l:doLine,'\c^do\s\+until\>')>-1
     let l:condition=(l:doLine,matchend(l:doLine,'^do\s\+while\s\+'))
-    let l:doStatement='if '.l:condition.' then goto '
+    let s:doStatement='if '.l:condition.' then goto '
   elseif match(l:doLine,'\c^loop$')>-1
-    let l:doStatement=''
+    let s:doStatement=''
   else
     echo 'Error: LOOP bad syntax at line '.line('.').'.'
   endif
@@ -130,7 +135,7 @@ function! SinBasicLoop()
   " Close a DO-LOOP.
 
   let l:loopLine=getline('.')
-  let l:jump='goto @do'.l:doLineNumber
+  let l:jump='goto @do'.s:doLineNumber
   echo '------ Right LOOP: '.l:loopLine
   if match(l:loopLine,'^loop\s\+while\>')>-1
     execute 'substitute,^loop\s\+while\s\+\(.\+\)$,if \1 then '.l:jump.',i'
@@ -143,13 +148,13 @@ function! SinBasicLoop()
   endif
 
   " Finish the DO if necessary:
-  if l:doStatement!=''
+  if s:doStatement!=''
     " Create a label after the end of the loop:
-    let l:exitLoopLabel='@loopExit'.l:doLineNumber
+    let l:exitLoopLabel='@loopExit'.s:doLineNumber
     call append('.',l:exitLoopLabel)
     " Complete and create the jump to it:
-    call append(l:doLineNumber,l:doStatement.l:exitLoopLabel)
-    let l:doStatement=''
+    call append(s:doLineNumber,s:doStatement.l:exitLoopLabel)
+    let s:doStatement=''
   endif
 
 endfunction
@@ -308,7 +313,7 @@ endfunction
 
 function! SinBasicRenum()
 
-  " Call the the nl program (part of the Debian coreutils package):
+  " Call the nl program (part of the Debian coreutils package):
   execute "silent! %!nl --body-numbering=t --number-format=rn --number-width=5 --number-separator=' ' --starting-line-number=".s:firstLine." --line-increment=1"
 
   " In older versions of coreutils,
