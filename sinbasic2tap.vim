@@ -1,9 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201408011759
-
-" Latest improvement: do-loop, do-loop until, do-loop while.
+" Version A-00-201408011941
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -12,21 +10,68 @@
 " This file is part of SinBasic:
 " http://programandala.net/en.program.sinbasic.html
 
-" This program, written in Vim, converts SinBasic source code to an actual
-" Sinclair BASIC program stored in a TAP file.
+" ----------------------------------------------
+"  Description
+
+" This program, written in Vim Script, is a Sinclair BASIC preprocessor. It
+" converts SinBasic source code to an actual Sinclair BASIC program stored in
+" a TAP file.
+"
+" The SinBasic 'language' offers the following advantages over Sinclair BASIC:
+"
+" - C-style block and line comments.
+" - Bash-style line comments.
+" - Labels instead of line numbers.
+" - Long variable names for strings, arrays and loops.
+" - Control structures:
+"   - DO ... LOOP
+"   - DO ... LOOP UNTIL
+"   - DO ... LOOP WHILE
+"   - DO UNTIL... LOOP
+"   - DO UNTIL ... LOOP UNTIL
+"   - DO UNTIL ... LOOP WHILE
+"   - DO WHILE ... LOOP
+"   - DO WHILE ... LOOP UNTIL
+"   - DO WHILE ... LOOP WHILE
+"   - EXIT DO
+"   - EXIT FOR
+"   - ELSE ... ENDIF
 
 " ----------------------------------------------
-" XXX TODO
+" To-do list
 
-" A lot.
-" Use single quotes when possible
+" A lot...
+
+" 2014-07: Use single quotes when possible
+
+" 2014-08-01: Improve: The parens used by 'NOT' to enclose the 'WHILE' or
+" 'UNTIL' expression may be ommited in certain cases.
+
+" 2014-08-01: 'EXIT DO n', to exit the n-th loop.
+
+" 2014-08-01: 'EXIT NEXT'
+
+" 2014-08-01: 'DEFPROC', 'ENDPROC', 'EXIT PROC'.
+" Idea for parameters:
+" Original:
+"   myproc 123,"hello"
+"   stop
+"   defproc myproc arg1,a$
+"     print arg1,a$
+"   endproc
+" Conversion:
+"   let arg1=123:let a$="hello":gosub @myproc
+"   stop
+"   @myproc
+"   print arg1,a$
+"   return
 
 " ----------------------------------------------
 " History
 
 " 2014-07-26: Started with the code of SinBasic2BB
 " (http://programandala.net/es.programa.bbim).
-" New: 'do...loop', 'do...loop until', 'do...loop while'.
+" New: 'do...loop', 'do...loop until' and 'do...loop while' implemented.
 
 " 2014-07-27:
 " New: First draft of 'do until...loop', 'do while...loop' and nested
@@ -36,15 +81,14 @@
 " Fix: Some local variables changed to script variables.
 
 " 2014-08-01:
-" Fix: All seven combinations of 'do...loop' work fine.
-" Fix: Nested loops work fine.
+" Fix: All nine combinations of 'do...loop' work fine.
+" New: Nested loops finished.
 " New: 'exit do' implemented.
+" New: 'exit for' implemented.
+" New: 'else...endif' implemented.
+" New: The TAP file is created (with the bas2tap converter).
 
 " ----------------------------------------------
-" TODO
-
-" 2014-08-01: Improve: The parens used by 'NOT' to enclose the WHILE or UNTIL
-" expression may be ommited in certain cases.
 
 function! SinBasicClean()
 
@@ -68,16 +112,18 @@ endfunction
 function! SinBasicControlStructures()
 
   call SinBasicDoLoop()
+  call SinBasicExitFor()
+  call SinBasicElse()
 
 endfunction
 
 function! SinBasicDoLoop()
 
-  " Convert all DO-LOOP structures.
+  " Convert all DO...LOOP structures.
 
-  " The SinBasic DO-LOOP structures are copied from Andy Wright's Beta BASIC,
-  " SAM BASIC and MasterBASIC: they allow UNTIL and WHILE in any combination
-  " (there are seven possible combinations).
+  " The SinBasic DO...LOOP structures are copied from Andy Wright's Beta
+  " BASIC, SAM BASIC and MasterBASIC: they allow UNTIL and WHILE in any
+  " combination (there are nine possible combinations).
 
   let s:doStatement=''
 
@@ -117,8 +163,12 @@ endfunction
 
 function! SinBasicDo()
 
-  " Open a DO-LOOP.
+  " Open a DO...LOOP.
 
+  " Syntax:
+  " DO and LOOP must be at their own lines.
+
+  " How this works:
   " The loop start can be DO, DO UNTIL or DO WHILE.  If it's just DO, a label
   " is enough.  If it's DO UNTIL or DO WHILE, a conditional jump has to be
   " inserted, but the destination line is unknown until the correspondant LOOP
@@ -151,7 +201,7 @@ endfunction
 
 function! SinBasicLoop()
 
-  " Close a DO-LOOP.
+  " Close a DO...LOOP.
 
   let l:loopLine=getline('.')
   let l:jump='goto @do'.s:doLineNumber
@@ -184,6 +234,10 @@ function! SinBasicExitDo()
 
   " Convert EXIT DO.
 
+  " Syntax:
+
+  " EXIT DO must be at the end of a line.
+
   let s:doStatement=''
 
   echo "--- About to search a EXIT DO!"
@@ -194,10 +248,79 @@ function! SinBasicExitDo()
     if search('^@loopExit\d\+$','W')
       let l:exitLabel=getline('.')
       call cursor(l:exitDoLineNumber,'^')
-      execute 'silent! %substitute,\<exit do\>,goto '.l:exitLabel.',ei'
+      execute 'silent! substitute,\<exit do\>,goto '.l:exitLabel.',ei'
     else
-      echo 'Error: EXIT DO without LOOP at line '.doLineNumber
+      echo 'Error: EXIT DO without LOOP at line '.exitDoLineNumber
     endif
+  endwhile
+endfunction
+
+function! SinBasicExitFor()
+
+  " Convert EXIT FOR.
+
+  " Syntax:
+
+  " EXIT FOR must be at the end of a line.
+
+  let s:doStatement=''
+
+  call cursor(1,1)
+  while search('\<exit for$','Wc')
+    echo "--- EXIT FOR found at line ".line('.').": ".getline('.')
+    let l:exitForLineNumber=line('.')
+    " XXX FIXME the loop variable format may be different if
+    " long variables have not been converted yet.
+    if search('\<next [a-z]\>','W')
+      echo "--- NEXT found at line ".line('.').": ".getline('.')
+      let l:exitLabel='@forExit'.line('.')
+      call append('.',l:exitLabel)
+      call cursor(l:exitForLineNumber,'^')
+      execute 'silent! substitute,\<exit for\>,goto '.l:exitLabel.',ei'
+    else
+      echo 'Error: EXIT FOR without NEXT at line '.exitForLineNumber
+    endif
+  endwhile
+endfunction
+
+function! SinBasicElse()
+
+  " Convert ELSE...ENDIF.
+
+  " Syntax:
+
+  " ELSE must be at the start of a line. It can be followed by any other
+  " command, with or without a separating semicolon.
+
+  " ENDIF must be alone at its own line.
+
+  let s:doStatement=''
+
+  call cursor(1,1)
+  while search('^else\>','Wc')
+    echo "--- ELSE found at line ".line('.').": ".getline('.')
+    let l:elseLineNumber=line('.')
+    " XXX TODO remove a possible ':' after 'else'.
+    call setline('.',strpart(getline('.'),4)) " remove the ELSE
+    " XXX TODO remove trailing spaces, use a regexp here:
+    if len(getline('.'))==0
+      silent substitute,\n,,
+    endif
+    if search('\<if .\+ then\>','Wb')
+      echo "--- IF found at line ".line('.').": ".getline('.')
+      let l:exitLabel='@ifExit'.line('.')
+      call setline('.',getline('.').':goto '.l:exitLabel)
+      call cursor(l:elseLineNumber,'^')
+      if search('^endif$','W')
+        call setline('.',l:exitLabel)
+      else
+        echo 'Error: ELSE without ENDIF at line '.elseLineNumber
+      endif
+    else
+      echo 'Error: ELSE without IF at line '.elseLineNumber
+    endif
+    call cursor(l:elseLineNumber,'^')
+
   endwhile
 endfunction
 
@@ -474,12 +597,19 @@ function! SinBasicBasfile()
 
   silent update " Write the current SinBasic file if needed
   split " Split the window
-  silent write! %.bas " Save a copy with the BB extension added
-  silent edit %.bas " Open it for editing
-  set fileencoding=latin1
+  let s:basFileName=@%.'.bas'
+  silent execute 'write! '.s:basFileName
+  silent execute 'edit '.s:basFileName
+  set fileencoding=latin1 " XXX TODO needed?
 
   echo 'BAS file created.'
 
+endfunction
+
+function! SinBasicTapFile()
+  " XXX TODO check if bas2tap is installed
+  silent execute '!bas2tap -q -w -c -n '.s:basFileName.' '.s:basFileName.'.tap'
+  echo 'TAP file created.'
 endfunction
 
 " ----------------------------------------------
@@ -500,15 +630,20 @@ function! SinBasic2tap()
   call SinBasicVim()
   call SinBasicClean()
   call SinBasicControlStructures()
-" XXX TMP
-"  call SinBasicLabels()
-"  call SinBasicRenum()
-"  call SinBasicChars()
-"  call SinBasicTokens()
+
+" XXX TMP for debugging
+  if 1
+  call SinBasicLabels()
+  call SinBasicRenum()
+  call SinBasicChars()
+  call SinBasicTokens()
+  endif
 
   silent w
   silent bw 
   echo 'BAS file saved and closed.'
+
+  call SinBasicTapFile()
 
   if s:ignoreCaseBackup
     set ignorecase
