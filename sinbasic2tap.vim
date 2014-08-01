@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201407310227
+" Version A-00-201408011718
 
 " Latest improvement: do-loop, do-loop until, do-loop while.
 
@@ -31,7 +31,9 @@
 " 2014-07-27: First draft of do until...loop, do while...loop and nested
 " loops.
 
-" 2014-07-31: Fix: some local variable renamed to script variables.
+" 2014-07-31: Fix: Some local variable renamed to script variables.
+
+" 2014-07-01: Fix: All seven combinations of do...loop work fine.
 
 " ----------------------------------------------
 
@@ -70,8 +72,11 @@ function! SinBasicDoLoop()
 
   let s:doStatement=''
 
-  while search('^do\(\s\+\(until|\while\)\s\+.\+\)\?$','wc')
+  echo "--- About to search a DO!"
+  call cursor(1,1)
+  while search('^do\(\s\+\(until\|while\)\s\+.\+\)\?$','Wc')
     " first DO found
+    echo "--- DO found!"
     let s:doLineNumber=line('.') " line number of the DO statement
     call SinBasicDo()
     let l:unclosedLoops=1 " counter
@@ -117,10 +122,12 @@ function! SinBasicDo()
   " Check the kind of DO and calculate the proper statement:
   " Note: '\c' at the start of the patterns ignores case.
   if match(l:doLine,'\c^do\s\+while\>')>-1
-    let l:condition=(l:doLine,matchend(l:doLine,'^do\s\+while\s\+'))
+    let l:conditionPos=matchend(l:doLine,'^do\s\+while\s\+')
+    let l:condition=strpart(l:doLine,l:conditionPos)
     let s:doStatement='if not ('.l:condition.') then goto '
   elseif match(l:doLine,'\c^do\s\+until\>')>-1
-    let l:condition=(l:doLine,matchend(l:doLine,'^do\s\+while\s\+'))
+    let l:conditionPos=matchend(l:doLine,'^do\s\+until\s\+')
+    let l:condition=strpart(l:doLine,l:conditionPos)
     let s:doStatement='if '.l:condition.' then goto '
   elseif match(l:doLine,'\c^loop$')>-1
     let s:doStatement=''
