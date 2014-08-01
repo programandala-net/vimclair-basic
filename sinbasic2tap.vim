@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201408011718
+" Version A-00-201408011759
 
 " Latest improvement: do-loop, do-loop until, do-loop while.
 
@@ -25,17 +25,26 @@
 " History
 
 " 2014-07-26: Started with the code of SinBasic2BB
-" (http://programandala.net/es.programa.bbim). ,,Implemented: do...loop,
-" do...loop until, do...loop while.
+" (http://programandala.net/es.programa.bbim).
+" New: 'do...loop', 'do...loop until', 'do...loop while'.
 
-" 2014-07-27: First draft of do until...loop, do while...loop and nested
+" 2014-07-27:
+" New: First draft of 'do until...loop', 'do while...loop' and nested
 " loops.
 
-" 2014-07-31: Fix: Some local variable renamed to script variables.
+" 2014-07-31:
+" Fix: Some local variables changed to script variables.
 
-" 2014-07-01: Fix: All seven combinations of do...loop work fine.
+" 2014-08-01:
+" Fix: All seven combinations of 'do...loop' work fine.
+" Fix: Nested loops work fine.
+" New: 'exit do' implemented.
 
 " ----------------------------------------------
+" TODO
+
+" 2014-08-01: Improve: The parens used by 'NOT' to enclose the WHILE or UNTIL
+" expression may be ommited in certain cases.
 
 function! SinBasicClean()
 
@@ -68,7 +77,7 @@ function! SinBasicDoLoop()
 
   " The SinBasic DO-LOOP structures are copied from Andy Wright's Beta BASIC,
   " SAM BASIC and MasterBASIC: they allow UNTIL and WHILE in any combination
-  " (there are 5 possible combinations).
+  " (there are seven possible combinations).
 
   let s:doStatement=''
 
@@ -82,9 +91,9 @@ function! SinBasicDoLoop()
     let l:unclosedLoops=1 " counter
     while search('^\(do\|loop\)\>','W')
       " DO or LOOP found
-      echo 'DO or LOOP found'
+      echo '--- DO or LOOP found'
       echo 'line: '.getline('.')
-      if strpart(getline('.'),1,2)=='do'
+      if strpart(getline('.'),0,2)=='do'
         " DO
         let l:unclosedLoops=l:unclosedLoops+1
       else
@@ -99,7 +108,10 @@ function! SinBasicDoLoop()
     if l:unclosedLoops
       echo 'Error: DO without LOOP at line '.doLineNumber
     endif
+    call cursor(s:doLineNumber,'$')
   endwhile
+
+  call SinBasicExitDo()
 
 endfunction
 
@@ -129,10 +141,10 @@ function! SinBasicDo()
     let l:conditionPos=matchend(l:doLine,'^do\s\+until\s\+')
     let l:condition=strpart(l:doLine,l:conditionPos)
     let s:doStatement='if '.l:condition.' then goto '
-  elseif match(l:doLine,'\c^loop$')>-1
+  elseif match(l:doLine,'\c^do$')>-1
     let s:doStatement=''
   else
-    echo 'Error: LOOP bad syntax at line '.line('.').'.'
+    echo 'Error: DO bad syntax at line '.line('.').'.'
   endif
 
 endfunction
@@ -154,16 +166,39 @@ function! SinBasicLoop()
     echo 'Error: LOOP bad syntax at line '.line('.').'.'
   endif
 
+  " Create a label after the end of the loop
+  " (it may be needed by DO WHILE, DO UNTIL or EXIT DO):
+  let l:loopExitLabel='@loopExit'.s:doLineNumber
+  call append('.',l:loopExitLabel)
+
   " Finish the DO if necessary:
   if s:doStatement!=''
-    " Create a label after the end of the loop:
-    let l:exitLoopLabel='@loopExit'.s:doLineNumber
-    call append('.',l:exitLoopLabel)
     " Complete and create the jump to it:
-    call append(s:doLineNumber,s:doStatement.l:exitLoopLabel)
+    call append(s:doLineNumber,s:doStatement.l:loopExitLabel)
     let s:doStatement=''
   endif
 
+endfunction
+
+function! SinBasicExitDo()
+
+  " Convert EXIT DO.
+
+  let s:doStatement=''
+
+  echo "--- About to search a EXIT DO!"
+  call cursor(1,1)
+  while search('\<exit do$','Wc')
+    echo "--- EXIT DO found!"
+    let l:exitDoLineNumber=line('.')
+    if search('^@loopExit\d\+$','W')
+      let l:exitLabel=getline('.')
+      call cursor(l:exitDoLineNumber,'^')
+      execute 'silent! %substitute,\<exit do\>,goto '.l:exitLabel.',ei'
+    else
+      echo 'Error: EXIT DO without LOOP at line '.doLineNumber
+    endif
+  endwhile
 endfunction
 
 " ----------------------------------------------
