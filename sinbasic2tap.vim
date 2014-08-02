@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201408011941
+" Version A-00-201408021618
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -22,7 +22,8 @@
 " - C-style block and line comments.
 " - Bash-style line comments.
 " - Labels instead of line numbers.
-" - Long variable names for strings, arrays and loops.
+" - Long variable names for strings, arrays and loops (using the #vim
+"   directive).
 " - Control structures:
 "   - DO ... LOOP
 "   - DO ... LOOP UNTIL
@@ -36,23 +37,18 @@
 "   - EXIT DO
 "   - EXIT FOR
 "   - ELSE ... ENDIF
+" - Procedures (without parameters):
+"   - DEF PROC, END PROC, EXIT PROC, PROC.
 
 " ----------------------------------------------
 " To-do list
-
-" A lot...
-
-" 2014-07: Use single quotes when possible
 
 " 2014-08-01: Improve: The parens used by 'NOT' to enclose the 'WHILE' or
 " 'UNTIL' expression may be ommited in certain cases.
 
 " 2014-08-01: 'EXIT DO n', to exit the n-th loop.
 
-" 2014-08-01: 'EXIT NEXT'
-
-" 2014-08-01: 'DEFPROC', 'ENDPROC', 'EXIT PROC'.
-" Idea for parameters:
+" 2014-08-01: Procedures with parameters. Idea:
 " Original:
 "   myproc 123,"hello"
 "   stop
@@ -87,6 +83,10 @@
 " New: 'exit for' implemented.
 " New: 'else...endif' implemented.
 " New: The TAP file is created (with the bas2tap converter).
+" New: Procedures (without parameters): 'defproc', 'endproc', 'exit proc', 'proc'.
+
+" 2014-08-02:
+" New: Syntax description of labels. 
 
 " ----------------------------------------------
 
@@ -114,6 +114,7 @@ function! SinBasicControlStructures()
   call SinBasicDoLoop()
   call SinBasicExitFor()
   call SinBasicElse()
+  call SinBasicProcedures()
 
 endfunction
 
@@ -127,11 +128,11 @@ function! SinBasicDoLoop()
 
   let s:doStatement=''
 
-  echo "--- About to search a DO!"
+  echo '--- About to search a DO!'
   call cursor(1,1)
   while search('^do\(\s\+\(until\|while\)\s\+.\+\)\?$','Wc')
     " first DO found
-    echo "--- DO found!"
+    echo '--- DO found!'
     let s:doLineNumber=line('.') " line number of the DO statement
     call SinBasicDo()
     let l:unclosedLoops=1 " counter
@@ -166,12 +167,15 @@ function! SinBasicDo()
   " Open a DO...LOOP.
 
   " Syntax:
-  " DO and LOOP must be at their own lines.
+
+  " DO and LOOP (with optional UNTIL or WHILE condition) must be the only
+  " statements on their lines.
 
   " How this works:
+
   " The loop start can be DO, DO UNTIL or DO WHILE.  If it's just DO, a label
   " is enough.  If it's DO UNTIL or DO WHILE, a conditional jump has to be
-  " inserted, but the destination line is unknown until the correspondant LOOP
+  " inserted, but the destination line is unknown until the correspondent LOOP
   " is found.  Therefore the code in stored into s:doStatement in order to
   " create it later (SinBasicLoop() does it), with the added line number.
 
@@ -240,10 +244,10 @@ function! SinBasicExitDo()
 
   let s:doStatement=''
 
-  echo "--- About to search a EXIT DO!"
+  echo '--- About to search a EXIT DO!'
   call cursor(1,1)
   while search('\<exit do$','Wc')
-    echo "--- EXIT DO found!"
+    echo '--- EXIT DO found!'
     let l:exitDoLineNumber=line('.')
     if search('^@loopExit\d\+$','W')
       let l:exitLabel=getline('.')
@@ -261,18 +265,16 @@ function! SinBasicExitFor()
 
   " Syntax:
 
-  " EXIT FOR must be at the end of a line.
+  " EXIT FOR and its correspondent NEXT must be at the end of the line.
 
   let s:doStatement=''
 
   call cursor(1,1)
   while search('\<exit for$','Wc')
-    echo "--- EXIT FOR found at line ".line('.').": ".getline('.')
+    echo '--- EXIT FOR found at line '.line('.').': '.getline('.')
     let l:exitForLineNumber=line('.')
-    " XXX FIXME the loop variable format may be different if
-    " long variables have not been converted yet.
     if search('\<next [a-z]\>','W')
-      echo "--- NEXT found at line ".line('.').": ".getline('.')
+      echo '--- NEXT found at line '.line('.').': '.getline('.')
       let l:exitLabel='@forExit'.line('.')
       call append('.',l:exitLabel)
       call cursor(l:exitForLineNumber,'^')
@@ -293,12 +295,13 @@ function! SinBasicElse()
   " command, with or without a separating semicolon.
 
   " ENDIF must be alone at its own line.
+  " The keyword can be written 'END IF' as well.
 
   let s:doStatement=''
 
   call cursor(1,1)
   while search('^else\>','Wc')
-    echo "--- ELSE found at line ".line('.').": ".getline('.')
+    echo '--- ELSE found at line '.line('.').': '.getline('.')
     let l:elseLineNumber=line('.')
     " XXX TODO remove a possible ':' after 'else'.
     call setline('.',strpart(getline('.'),4)) " remove the ELSE
@@ -307,11 +310,11 @@ function! SinBasicElse()
       silent substitute,\n,,
     endif
     if search('\<if .\+ then\>','Wb')
-      echo "--- IF found at line ".line('.').": ".getline('.')
+      echo '--- IF found at line '.line('.').': '.getline('.')
       let l:exitLabel='@ifExit'.line('.')
       call setline('.',getline('.').':goto '.l:exitLabel)
       call cursor(l:elseLineNumber,'^')
-      if search('^endif$','W')
+      if search('^end\s\?if$','W')
         call setline('.',l:exitLabel)
       else
         echo 'Error: ELSE without ENDIF at line '.elseLineNumber
@@ -322,6 +325,49 @@ function! SinBasicElse()
     call cursor(l:elseLineNumber,'^')
 
   endwhile
+endfunction
+
+function! SinBasicProcedures()
+
+  " Convert DEF PROC, END PROC and EXIT PROC.
+
+  " Syntax:
+
+  " DEF PROC and END PROC must be the only statements of the line.
+  " The space is optional: DEFPROC and ENDPROC are valid.
+  " EXIT PROC must be at the end of the line.
+  " PROC must be used to call a procedure.
+
+  " Description:
+
+  " Procedures are simulated with ordinary routines. No parameters are allowed
+  " yet.
+
+  let s:doStatement=''
+
+  call cursor(1,1)
+  while search('^def\s\?proc\>','Wc')
+    echo '--- DEF PROC found at line '.line('.').': '.getline('.')
+    let l:procLineNumber=line('.')
+    let l:procLine=getline('.')
+    let l:procNamePos=matchend(l:procLine,'^def\s\?proc\s\+')
+    let l:procName=strpart(l:procLine,l:procNamePos)
+    if len(l:procName)==0
+      echo 'Error: DEF PROC bad syntax at line '.l:procLineNumber
+    else
+      echo 'valid proc name: '.l:procName
+      let l:procLabel='@proc'.l:procLineNumber
+      echo 'proc label: '.l:procLabel
+      call setline(l:procLineNumber,l:procLabel)
+      call cursor(l:procLineNumber,'^')
+      " XXX TODO make PROC optional in the calls:
+      execute '%substitute,\<proc '.l:procName.'\>,gosub '.l:procLabel.',gei'
+    endif
+  endwhile
+
+  silent %substitute,\<exit proc$$,return,ei
+  silent %substitute,^end\s\?proc$,return,ei
+
 endfunction
 
 " ----------------------------------------------
@@ -393,8 +439,7 @@ endfunction
 function! SinBasicGetFirstLine()
 
   " Store into s:firstLine the first line number
-  " to be used by the final Beta BASIC program
-  " (old versions of SinBasicport occupied lines 1-9).
+  " to be used by the final Sinclair BASIC program.
   " The command #firstline can be used to set
   " the desired line number. Only the first occurence
   " of #firstline will be used; it can be anywhere
@@ -415,6 +460,18 @@ function! SinBasicGetFirstLine()
 endfunction
 
 function! SinBasicLabels()
+
+  " Sintax:
+
+  " Label names must start with '@'. The rest of the name must be letters A-Z,
+  " a-z, digits or underscores.
+
+  " A label is defined by putting the label name at the start of a line. If a
+  " BASIC command follows it, a colon or a space are required between them.
+  
+  " The label references are the label names. They will be substituted with
+  " the correspondent line number anywhere in the source -- even in text
+  " strings!
 
   let l:ignoreCaseBackup=&ignorecase
   set ignorecase
@@ -451,13 +508,13 @@ function! SinBasicLabels()
 
   " Substitute every label reference with its line number:
   for l:label in keys(l:lineNumber)
-    "echo "About to search for label " l:label
+    "echo 'About to search for label ' l:label
     call cursor(1,1) " Go to the top of the file.
     " Do the subtitution: 
     while search(l:label.'\>','Wc')
       " XXX debug check
 "      echo l:label "label reference found"
-"      echo "About to translate it to " l:lineNumber[l:label]
+"      echo 'About to translate it to ' l:lineNumber[l:label]
       "execute 'silent! substitute/\<'.l:label.'\>/'.l:lineNumber[l:label].'/ei'
       execute 'substitute/'.l:label.'\>/'.l:lineNumber[l:label].'/i'
     endwhile
@@ -503,9 +560,13 @@ endfunction
 " Token conversion
 
 function! SinBasicTokens()
+
+  " Modify some tokens to the format required by bas2tap.
+
   silent! %s@\<gosub\>@go sub@ge
   silent! %s@\<goto\>@go to@ge
   silent! %s@\<deffn\>@def fn@ge
+
 endfunction
 
 " ----------------------------------------------
@@ -592,15 +653,15 @@ endfunction
 function! SinBasicBasfile()
 
   " Create a copy of the current SinBasic file
-  " with the ".bas" extension added
+  " with the .bas extension added
   " and open it for editing.
 
   silent update " Write the current SinBasic file if needed
   split " Split the window
-  let s:basFileName=@%.'.bas'
+  let s:basFileName=getreg('%').'.bas'
   silent execute 'write! '.s:basFileName
   silent execute 'edit '.s:basFileName
-  set fileencoding=latin1 " XXX TODO needed?
+"  set fileencoding=latin1 " XXX TODO needed?
 
   echo 'BAS file created.'
 
@@ -632,18 +693,20 @@ function! SinBasic2tap()
   call SinBasicControlStructures()
 
 " XXX TMP for debugging
-  if 1
+  if 0
+ 
   call SinBasicLabels()
   call SinBasicRenum()
   call SinBasicChars()
   call SinBasicTokens()
-  endif
 
   silent w
   silent bw 
   echo 'BAS file saved and closed.'
 
   call SinBasicTapFile()
+  
+  endif
 
   if s:ignoreCaseBackup
     set ignorecase
@@ -659,7 +722,7 @@ endfunction
 " to create a Beta BASIC file:
 nmap <silent> ,sb :call SinBasic2tap()<CR>
 
-echo "SinBasic2tap loaded."
-echo "Activate it with the keys ',sb' (comma, S and B), in normal mode, on your SinBasic source."
+echo 'SinBasic2tap loaded.'
+echo 'Activate it with the key sequence ,sb (comma, S and B), in normal mode, on your SinBasic source.'
 
 " vim:tw=78:ts=2:et:
