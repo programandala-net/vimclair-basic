@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201408021618
+" Version A-00-201408031316
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -327,7 +327,9 @@ function! SinBasicElse()
   endwhile
 endfunction
 
-function! SinBasicProcedures()
+function! EXSinBasicProcedures()
+
+  " XXX OLD First version, without parameters.
 
   " Convert DEF PROC, END PROC and EXIT PROC.
 
@@ -359,6 +361,68 @@ function! SinBasicProcedures()
       let l:procLabel='@proc'.l:procLineNumber
       echo 'proc label: '.l:procLabel
       call setline(l:procLineNumber,l:procLabel)
+      call cursor(l:procLineNumber,'^')
+      " XXX TODO make PROC optional in the calls:
+      execute '%substitute,\<proc '.l:procName.'\>,gosub '.l:procLabel.',gei'
+    endif
+  endwhile
+
+  silent %substitute,\<exit proc$$,return,ei
+  silent %substitute,^end\s\?proc$,return,ei
+
+endfunction
+
+function! SinBasicProcedures()
+
+  " XXX second version, with parameters, unfinished
+
+  " Convert DEF PROC, END PROC and EXIT PROC.
+
+  " Syntax:
+
+  " DEF PROC and END PROC must be the only statements of the line.
+  " The space is optional: DEFPROC and ENDPROC are valid.
+  " EXIT PROC must be at the end of the line.
+  " PROC must be used to call a procedure.
+
+  " Description:
+
+  " Procedures are simulated with routines.
+  " Parameters are simulated with LET before calling the subroutines.
+
+  let s:doStatement=''
+  let l:procParametersList=[]
+  let s:maxProcParameters=2
+  "let l:procParametersPattern='\(\a[a-zA-Z0-9_]*\$\?,\?\)\{-'+s:maxProcParameters+'}'
+  let l:procParametersPattern='\(\a[a-zA-Z0-9_]*\$\?\)'
+  let l:i=1
+  while l:i<s:maxProcParameters
+    let l:procParametersPattern=l:procParametersPattern.',\(\a[a-zA-Z0-9_]*\$\?\)'
+    let l:i=l:i+1
+  endwhile
+  echo 'l:procParametersPattern: '.l:procParametersPattern
+
+  call cursor(1,1)
+  while search('^def\s\?proc\>','Wc')
+    echo '--- DEF PROC found at line '.line('.').': '.getline('.')
+    let l:procLineNumber=line('.')
+    let l:procLine=getline('.')
+    let l:procNamePos=matchend(l:procLine,'^def\s\?proc\s\+')
+    let l:procName=strpart(l:procLine,l:procNamePos)
+    echo 'l:procName: '.l:procName
+    let l:procParametersPos=matchend(l:procLine,'^def\s\?proc\s\+\S\+\s\+')
+    let l:procParameters=strpart(l:procLine,l:procParametersPos)
+    echo 'l:procParameters: '.l:procParameters
+    if len(l:procName)==0
+      echo 'Error: DEF PROC bad syntax at line '.l:procLineNumber
+    else
+      echo 'valid proc name: '.l:procName
+      let l:procLabel='@proc'.l:procLineNumber
+      echo 'proc label: '.l:procLabel
+      call setline(l:procLineNumber,l:procLabel)
+      let l:procParametersList=matchlist(l:procParameters,l:procParametersPattern)
+      echo 'l:procParametersList:'
+      echo l:procParametersList
       call cursor(l:procLineNumber,'^')
       " XXX TODO make PROC optional in the calls:
       execute '%substitute,\<proc '.l:procName.'\>,gosub '.l:procLabel.',gei'
