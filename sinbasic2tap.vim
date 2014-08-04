@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201408041339
+" Version A-01-201408041604
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -36,9 +36,14 @@
 "   - DO WHILE ... LOOP WHILE
 "   - EXIT DO
 "   - EXIT FOR
-"   - ELSE ... ENDIF
+"   - IF ... ELSE ... ENDIF
 " - Procedures (without parameters):
-"   - DEF PROC, END PROC, EXIT PROC, PROC.
+"   - DEF PROC, END PROC, EXIT PROC, CALL.
+" - The CALL command can be changed with
+"   '#procedureCall', e.g.:
+"     #procedureCall proc
+"   Or even make it empty:
+"     #procedureCall
 
 " ----------------------------------------------
 " To-do list
@@ -62,10 +67,14 @@
 "   print arg1,a$
 "   return
 
+" 2014-08-04: 'ELSE IF' statement.
+
+" 2014-08-04: 'CASE' structure.
+
 " ----------------------------------------------
 " History
 
-" 2014-07-26: Started with the code of SinBasic2BB
+" 2014-07-26: Started with the code of BBim2BB
 " (http://programandala.net/es.programa.bbim).
 " New: 'do...loop', 'do...loop until' and 'do...loop while' implemented.
 
@@ -93,6 +102,14 @@
 " Improvement: The directory of the source file is the working directory.
 " This lets '#include' paths relative to it. XXX not tested yet.
 
+" 2014-08-04:
+" Improvement: Long 'if...else...endif' structures; the previous
+" 'else...endif' method is removed.
+" New: '#procedurecall' lets to configure the command used to call the a
+" procedure (the default is 'call'), or make it empty.
+" Change: Version A-01: first usable version, with loops and long
+" conditional structures.
+
 " ----------------------------------------------
 
 function! SinBasicClean()
@@ -118,7 +135,7 @@ function! SinBasicControlStructures()
 
   call SinBasicDoLoop()
   call SinBasicExitFor()
-  call SinBasicElse()
+  call SinBasicIfEndif()
   call SinBasicProcedures()
 
 endfunction
@@ -294,7 +311,7 @@ function! SinBasicElse()
 
   " Convert ELSE...ENDIF.
 
-  " XXX OLD -- This method can not work with nested conditionals.
+  " XXX OLD -- Abandoned. This method can not work with nested conditionals.
 
   " Syntax:
 
@@ -334,9 +351,9 @@ function! SinBasicElse()
   endwhile
 endfunction
 
-function! SinBasicIf()
+function! SinBasicIfEndif()
 
-  " Convert all IF...ENDIF structures, even nested.
+  " Convert all IF...ENDIF structures.
 
   " XXX TODO finish
 
@@ -379,8 +396,7 @@ function! SinBasicIf()
     " Main long IF found
     echo '--- IF found!'
     let l:ifLineNumber=line('.') " line number of the IF 
-    let l:ifLine=getline('.') " line of the IF 
-    let l:ifCondition='' " XXX TODO
+    let l:condition=substitute(getline('.'), '^if\s*\(.\{-}\)\s*then$', '\1', '')
     let l:unclosedConditionals=1 " counter
     let l:elseLineNumber=0 " used also as a flag
     while search('^\(if\s\+.\+\s\+then\|else\|end\s*if\)$','W')
@@ -390,27 +406,28 @@ function! SinBasicIf()
       if strpart(getline('.'),0,2)=='if'
         " Nested long IF
         let l:unclosedConditionals=l:unclosedConditionals+1
-      else if strpart(getline('.'),0,4)=='else'
+      elseif strpart(getline('.'),0,4)=='else'
         " ELSE
         if l:unclosedConditionals==1 " current?
           let l:elseLineNumber=line('.')
-          let l:elseLabel='@else'+l:elseLineNumber
+          let l:elseLabel='@else'.l:ifLineNumber
           call setline('.',l:elseLabel)
         endif
       else
         " ENDIF
         let l:unclosedConditionals=l:unclosedConditionals-1
         if l:unclosedConditionals==0 " current?
-          let l:endifLabel='@endif'.line('.')
+          let l:endifLabel='@endif'.l:ifLineNumber
           call setline('.',l:endifLabel)
           if l:elseLineNumber " there was an ELSE?
-            call cursor(l:elseLineNumber-1,1)
-            call append('goto '.l:endifLabel)
-            " XXX TODO -- jump from IF to ELSE
-
+            call append(l:elseLineNumber-1,'goto '.l:endifLabel)
+            " The IF must jump to ELSE
+            let l:newIf='if not('.l:condition.') then goto '.l:elseLabel
           else
-            " XXX TODO -- jump from IF to ENDIF
+            " The IF must jump to ENDIF
+            let l:newIf='if not('.l:condition.') then goto '.l:endifLabel
           endif
+          call setline(l:ifLineNumber,l:newIf)
           break
         endif
       endif
@@ -423,6 +440,17 @@ function! SinBasicIf()
 
   call SinBasicExitDo()
 
+endfunction
+
+function! SinBasicIfCondition(ifLine)
+  " Return the condition of a long-IF line
+  " (whose format is 'if condition then').
+"  let l:condition=strpart(a:ifLine,2)
+"  let l:condition=strpart(l:condition,0,len(l:condition)-4)
+"  let l:condition=strpart(l:condition,match(l:condition,'\S'))
+"  let l:tail=match(l:condition,'then$')
+"  let l:condition=strpart(l:condition,0,len(l:condition)-l:tail)
+"  return Trim(l:condition)
 endfunction
 
 function! SinBasicProcedures()
@@ -460,8 +488,7 @@ function! SinBasicProcedures()
       echo 'proc label: '.l:procLabel
       call setline(l:procLineNumber,l:procLabel)
       call cursor(l:procLineNumber,'^')
-      " XXX TODO make PROC optional in the calls:
-      execute '%substitute,\<proc '.l:procName.'\>,gosub '.l:procLabel.',gei'
+      execute '%substitute,\<'.s:procedureCall.'\s\+'.l:procName.'\>,gosub '.l:procLabel.',gei'
     endif
   endwhile
 
@@ -603,9 +630,21 @@ function! SinBasicInclude()
 endfunction
 
 " ----------------------------------------------
-" Labels
+" Config commands
 
-function! SinBasicGetFirstLine()
+function! SinBasicConfig()
+
+  " Search and parse the config commands.  They can be anywhere in the source
+  " but always at the start of a line (with optional indentation).
+
+  " #firstline <line number>
+  call SinBasicFirstLine()
+  " #procedurecall <command name>
+  call SinBasicProcedureCall()
+
+endfunction
+
+function! SinBasicFirstLine()
 
   " Store into s:firstLine the first line number
   " to be used by the final Sinclair BASIC program.
@@ -627,6 +666,33 @@ function! SinBasicGetFirstLine()
   echo 'First line number: '.s:firstLine
 
 endfunction
+
+function! SinBasicProcedureCall()
+
+  " Store into s:procedureCall the command
+  " used in the source
+  " by the Sinclair BASIC program.
+  " The command #procedureCall can be used to set
+  " the desired line number. Only the first occurence
+  " of #procedureCall will be used; it can be anywhere
+  " in the source but always at the start of a line
+  " (with optional indentation).
+
+  let s:procedureCall='call' " default value
+  
+  call cursor(1,1) " Go to the top of the file.
+  if search('^\s*#procedurecall\s\+[0-9]\+\>','Wc')
+    " Store the string into register 'l':
+    normal ww"lyw
+    " And then into the variable:
+    let s:procedureCall=getreg('l',1)
+  endif
+  echo 'Procedure call: '.s:procedureCall
+
+endfunction
+
+" ----------------------------------------------
+" Labels
 
 function! SinBasicLabels()
 
@@ -847,6 +913,15 @@ function! SinBasicTapFile()
 endfunction
 
 " ----------------------------------------------
+" Generic functions
+
+" XXX TMP
+function! Trim(input_string)
+  " http://stackoverflow.com/questions/4478891/is-there-a-vimscript-equivalent-for-rubys-strip-strip-leading-and-trailing-s
+  return substitute(a:input_string, '^\s*\(.\{-}\)\s*$', '\1', '')
+endfunction
+
+" ----------------------------------------------
 " Debug
 
 function! XXX(message)
@@ -861,22 +936,21 @@ endfunction
 
 function! SinBasic2tap()
 
+  let s:shortmessBackup=&shortmess
   set shortmess=at
-
-  call SinBasicGetFirstLine()
 
   let s:ignoreCaseBackup=&ignorecase
   set ignorecase
-
+  
+  call SinBasicConfig()
   call SinBasicBasfile()
-
   call SinBasicInclude()
   call SinBasicVim()
   call SinBasicClean()
   call SinBasicControlStructures()
 
 " XXX TMP for debugging
-  if 0
+  if 1
  
   call SinBasicLabels()
   call SinBasicRenum()
@@ -896,6 +970,8 @@ function! SinBasic2tap()
   else
     set noignorecase
   endif
+" XXX TODO
+"  set shortmess=l:shortmessBackup
 
   echo 'Done!'
 
