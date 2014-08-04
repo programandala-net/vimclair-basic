@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-01-201408041604
+" Version A-02-201408042235
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -48,8 +48,8 @@
 " ----------------------------------------------
 " To-do list
 
-" 2014-08-01: Improve: The parens used by 'NOT' to enclose the 'WHILE' or
-" 'UNTIL' expression may be ommited in certain cases.
+" 2014-08-01: Improve: The parens used by 'NOT' to enclose the 'WHILE',
+" 'UNTIL' of 'IF' expressions can be ommited in certain cases.
 
 " 2014-08-01: 'EXIT DO n', to exit the n-th loop.
 
@@ -71,6 +71,16 @@
 
 " 2014-08-04: 'CASE' structure.
 
+" 2014-08-04: Optimize the chained jumps created by the control structures.
+" Example code:
+"
+"   if not(a<30) then goto @endif10 <<<<----- change to @endif2
+"   print "20 to 29"
+"   @endif10
+"   goto @endif2
+
+" 2014-08-04: Check duplicated labels.
+
 " ----------------------------------------------
 " History
 
@@ -83,7 +93,7 @@
 " loops.
 
 " 2014-07-31:
-" Fix: Some local variables changed to script variables.
+" Fix: Some local variables have been changed to script variables.
 
 " 2014-08-01:
 " Fix: All nine combinations of 'do...loop' work fine.
@@ -109,6 +119,7 @@
 " procedure (the default is 'call'), or make it empty.
 " Change: Version A-01: first usable version, with loops and long
 " conditional structures.
+" New: Version A-02: long conditionals can be nested.
 
 " ----------------------------------------------
 
@@ -351,11 +362,11 @@ function! SinBasicElse()
   endwhile
 endfunction
 
-function! SinBasicIfEndif()
+function! EXSinBasicIfEndif()
 
   " Convert all IF...ENDIF structures.
 
-  " XXX TODO finish
+  " XXX OLD Second version, without ELSE IF or nesting.
 
   " The SinBasic IF...ENDIF structures are inspired by Andy Wright's Beta
   " BASIC, SAM BASIC and MasterBASIC, but they are not identical.
@@ -380,7 +391,7 @@ function! SinBasicIfEndif()
   "     action
   "
   " Long IF structures must have 'THEN' at the end of the actual source line,
-  " and the only ELSE of the structure must be on its own line:
+  " and the ELSE must be on its own line:
   "
   "   IF condition1 THEN
   "     code1
@@ -435,6 +446,130 @@ function! SinBasicIfEndif()
     if l:unclosedConditionals
       echo 'Error: IF without ENDIF at line '.ifLineNumber
     endif
+    call cursor(l:ifLineNumber,'$')
+  endwhile
+
+  call SinBasicExitDo()
+
+endfunction
+
+function! SinBasicIfEndif()
+
+  " Convert all IF...ENDIF structures.
+
+  " XXX TODO finish
+
+  " The SinBasic IF...ENDIF structures are inspired by Andy Wright's Beta
+  " BASIC, SAM BASIC and MasterBASIC, but they are not identical.
+
+  " Syntax:
+  "
+  " Short IF structures are the same than Sinclair BASIC's.
+  "
+  "   IF condition THEN action
+  "
+  " Of course they can be splitted into any number of text lines:
+  " 
+  "   IF condition THEN \
+  "     action
+  "
+  " As usual, the splitting format does not affect the parsing,
+  " as long as the required spaces are preserved at the splitting points:
+  "
+  "   IF \
+  "     condition \
+  "   THEN \
+  "     action
+  "
+  " Long IF structures must have 'THEN' at the end of the actual source line;
+  " ELSE IF must be at the start of the line; ELSE must be on its own line:
+  "
+  "   IF condition1 THEN
+  "     code1
+  "   ELSE IF condition2
+  "     code2
+  "   ELSE 
+  "     code3
+  "   ENDIF
+
+  let s:ifStatement=''
+
+  echo '--- About to search for a long IF!'
+  call cursor(1,1)
+  while search('^if .\+ then$','Wc')
+
+    " Main long IF found
+    echo '--- IF found!'
+    let l:ifLineNumber=line('.')
+    let l:endifLabel='@endif'.l:ifLineNumber
+    let l:conditionLineNumber=line('.')
+    let l:condition=substitute(getline('.'), '^if\s*\(.\{-}\)\s*then$', '\1', '')
+    let l:unclosedConditionals=1 " counter
+    let l:elseLineNumber=0 " used also as a flag
+
+    while search('^\(\(else\s\+\)\?if\s\+.\+\s\+then\|else\|end\s*if\)$','W')
+      " Nested long IF, ELSE IF, ELSE or ENDIF found
+      echo '--- IF, ELSE or ENDIF found'
+      echo 'line: '.getline('.')
+      if strpart(getline('.'),0,2)=='if'
+        " Nested long IF
+        let l:unclosedConditionals=l:unclosedConditionals+1
+      elseif strpart(getline('.'),0,7)=='else if'
+        " ELSE IF
+        if l:unclosedConditionals==1 " current IF structure?
+          if l:elseLineNumber " there was a previous ELSE?
+            echo 'Error: ELSE IF after ELSE at line '.line('.')
+            break
+          else
+            call append(line('.')-1,'goto '.l:endifLabel)
+            " Make the previous condition jump here when false:
+            let l:elseIfLabel='@elseIf'.l:ifLineNumber.'_'.line('.')
+            let l:newIf='if not('.l:condition.') then goto '.l:elseIfLabel
+            call setline(l:conditionLineNumber,l:newIf)
+            call append(line('.')-1,l:elseIfLabel)
+            " Keep the current condition:
+            let l:conditionLineNumber=line('.')
+            let l:condition=substitute(getline('.'), '^else\s\+if\s*\(.\{-}\)\s*then$', '\1', '')
+            " 
+          endif
+        endif
+      elseif strpart(getline('.'),0,4)=='else'
+        " ELSE
+        if l:unclosedConditionals==1 " current IF structure?
+          if l:elseLineNumber " there was a previous ELSE?
+            echo 'Error: Second ELSE at line '.line('.')
+            break
+          else
+            call append('.'-1,'goto '.l:endifLabel)
+            let l:elseLineNumber=line('.')
+            " Make the previous condition jump here when false:
+            let l:elseLabel='@else'.l:ifLineNumber
+            let l:newIf='if not('.l:condition.') then goto '.l:elseLabel
+            call setline(l:conditionLineNumber,l:newIf)
+            call setline('.',l:elseLabel)
+            " Keep the current condition:
+            let l:conditionLineNumber=line('.')
+            let l:condition=''
+          endif
+        endif
+      else
+        " ENDIF
+        let l:unclosedConditionals=l:unclosedConditionals-1
+        if l:unclosedConditionals==0 " current IF structure?
+          call setline('.',l:endifLabel)
+          if len(l:condition) " is there an unresolved condition?
+            let l:newIf='if not('.l:condition.') then goto '.l:endifLabel
+            call setline(l:conditionLineNumber,l:newIf)
+          endif
+          break
+        endif
+      endif
+    endwhile
+
+    if l:unclosedConditionals
+      echo 'Error: IF without ENDIF at line '.ifLineNumber
+    endif
+
     call cursor(l:ifLineNumber,'$')
   endwhile
 
@@ -950,7 +1085,7 @@ function! SinBasic2tap()
   call SinBasicControlStructures()
 
 " XXX TMP for debugging
-  if 1
+  if 0
  
   call SinBasicLabels()
   call SinBasicRenum()
@@ -981,7 +1116,7 @@ endfunction
 " to create a Beta BASIC file:
 nmap <silent> ,sb :call SinBasic2tap()<CR>
 
-echo 'SinBasic2tap loaded.'
-echo 'Activate it with the key sequence ,sb (comma, S and B), in normal mode, on your SinBasic source.'
+echo 'SinBasic2tap is ready to use.'
+echo 'Activate it with the key sequence ,sb in normal mode, on your SinBasic source.'
 
 " vim:tw=78:ts=2:et:
