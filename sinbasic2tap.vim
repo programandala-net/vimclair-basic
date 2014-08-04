@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-02-201408042235
+" Version A-02-201408042326
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -120,6 +120,8 @@
 " Change: Version A-01: first usable version, with loops and long
 " conditional structures.
 " New: Version A-02: long conditionals can be nested.
+" Fix: '#procedureCall' was not parsed.
+" Fix: Now 's:procedureCall' works also when empty.
 
 " ----------------------------------------------
 
@@ -129,7 +131,7 @@ function! SinBasicClean()
 
   silent! %s/^\s*#.*$//e " Remove the metacomments
   silent! %s/\s*\/\/.*$//e " Remove the // line comments
-  silent %s,^\s*\/\*\_.\{-}\*\/,,e " Remove the /* */ block comments
+  silent! %s,^\s*\/\*\_.\{-}\*\/,,e " Remove the /* */ block comments
   silent! %s/^\s\+//e " Remove indentation
   silent! %s/\s\+$//e " Remove trailing spaces
   silent! %s/^\n//e " Remove the empty lines
@@ -137,6 +139,8 @@ function! SinBasicClean()
 
   echo 'Source code cleaned.'
 
+  call SinBasicSaveStep('clean')
+  
 endfunction
 
 " ----------------------------------------------
@@ -161,18 +165,18 @@ function! SinBasicDoLoop()
 
   let s:doStatement=''
 
-  echo '--- About to search for a DO!'
+  "echo '  XXX About to search for a DO!'
   call cursor(1,1)
   while search('^do\(\s\+\(until\|while\)\s\+.\+\)\?$','Wc')
     " first DO found
-    echo '--- DO found!'
+    "echo '  XXX DO found!'
     let s:doLineNumber=line('.') " line number of the DO statement
     call SinBasicDo()
     let l:unclosedLoops=1 " counter
     while search('^\(do\|loop\)\>','W')
       " DO or LOOP found
-      echo '--- DO or LOOP found'
-      echo 'line: '.getline('.')
+      "echo '  XXX DO or LOOP found'
+      "echo '  XXX line: '.getline('.')
       if strpart(getline('.'),0,2)=='do'
         " DO
         let l:unclosedLoops=l:unclosedLoops+1
@@ -186,12 +190,14 @@ function! SinBasicDoLoop()
       endif
     endwhile
     if l:unclosedLoops
-      echo 'Error: DO without LOOP at line '.doLineNumber
+      echo 'Error: DO without LOOP at line '.s:doLineNumber
     endif
     call cursor(s:doLineNumber,'$')
   endwhile
 
   call SinBasicExitDo()
+  
+  call SinBasicSaveStep('do_loop')
 
 endfunction
 
@@ -242,7 +248,7 @@ function! SinBasicLoop()
 
   let l:loopLine=getline('.')
   let l:jump='goto @do'.s:doLineNumber
-  echo '------ Right LOOP: '.l:loopLine
+  "echo '  XXX--- Right LOOP: '.l:loopLine
   if match(l:loopLine,'^loop\s\+while\>')>-1
     execute 'substitute,^loop\s\+while\s\+\(.\+\)$,if \1 then '.l:jump.',i'
   elseif match(l:loopLine,'^loop\s\+until\>')>-1
@@ -277,10 +283,10 @@ function! SinBasicExitDo()
 
   let s:doStatement=''
 
-  echo '--- About to search for an EXIT DO!'
+  "echo '  XXX About to search for an EXIT DO!'
   call cursor(1,1)
   while search('\<exit do$','Wc')
-    echo '--- EXIT DO found!'
+    "echo '  XXX EXIT DO found!'
     let l:exitDoLineNumber=line('.')
     if search('^@loopExit\d\+$','W')
       let l:exitLabel=getline('.')
@@ -304,10 +310,10 @@ function! SinBasicExitFor()
 
   call cursor(1,1)
   while search('\<exit for$','Wc')
-    echo '--- EXIT FOR found at line '.line('.').': '.getline('.')
+    "echo '  XXX EXIT FOR found at line '.line('.').': '.getline('.')
     let l:exitForLineNumber=line('.')
     if search('\<next [a-z]\>','W')
-      echo '--- NEXT found at line '.line('.').': '.getline('.')
+      "echo '  XXX NEXT found at line '.line('.').': '.getline('.')
       let l:exitLabel='@forExit'.line('.')
       call append('.',l:exitLabel)
       call cursor(l:exitForLineNumber,'^')
@@ -316,6 +322,9 @@ function! SinBasicExitFor()
       echo 'Error: EXIT FOR without NEXT at line '.exitForLineNumber
     endif
   endwhile
+  
+  call SinBasicSaveStep('exit_for')
+
 endfunction
 
 function! SinBasicElse()
@@ -334,7 +343,7 @@ function! SinBasicElse()
 
   call cursor(1,1)
   while search('^else\>','Wc')
-    echo '--- ELSE found at line '.line('.').': '.getline('.')
+    "echo '  XXX ELSE found at line '.line('.').': '.getline('.')
     let l:elseLineNumber=line('.')
     let l:elseLine=getline('.')
     let l:elsePartPos=matchend(l:elseLine,'else\(\(\s\|:\)\+\)\?')
@@ -345,7 +354,7 @@ function! SinBasicElse()
       silent substitute,\n,,
     endif
     if search('\<if .\+ then\>','Wb')
-      echo '--- IF found at line '.line('.').': '.getline('.')
+      "echo '  XXX IF found at line '.line('.').': '.getline('.')
       let l:exitLabel='@endif'.line('.')
       call setline('.',getline('.').':goto '.l:exitLabel)
       call cursor(l:elseLineNumber,'^')
@@ -401,19 +410,19 @@ function! EXSinBasicIfEndif()
 
   let s:ifStatement=''
 
-  echo '--- About to search for a long IF!'
+  "echo '  XXX About to search for a long IF!'
   call cursor(1,1)
   while search('^if .\+ then$','Wc')
     " Main long IF found
-    echo '--- IF found!'
+    "echo '  XXX IF found!'
     let l:ifLineNumber=line('.') " line number of the IF 
     let l:condition=substitute(getline('.'), '^if\s*\(.\{-}\)\s*then$', '\1', '')
     let l:unclosedConditionals=1 " counter
     let l:elseLineNumber=0 " used also as a flag
     while search('^\(if\s\+.\+\s\+then\|else\|end\s*if\)$','W')
       " Nested long IF, ELSE or ENDIF found
-      echo '--- IF, ELSE or ENDIF found'
-      echo 'line: '.getline('.')
+      "echo '  XXX IF, ELSE or ENDIF found'
+      "echo '  XXX line: '.getline('.')
       if strpart(getline('.'),0,2)=='if'
         " Nested long IF
         let l:unclosedConditionals=l:unclosedConditionals+1
@@ -494,12 +503,12 @@ function! SinBasicIfEndif()
 
   let s:ifStatement=''
 
-  echo '--- About to search for a long IF!'
+  "echo '  XXX About to search for a long IF!'
   call cursor(1,1)
   while search('^if .\+ then$','Wc')
 
     " Main long IF found
-    echo '--- IF found!'
+    "echo '  XXX IF found!'
     let l:ifLineNumber=line('.')
     let l:endifLabel='@endif'.l:ifLineNumber
     let l:conditionLineNumber=line('.')
@@ -509,8 +518,8 @@ function! SinBasicIfEndif()
 
     while search('^\(\(else\s\+\)\?if\s\+.\+\s\+then\|else\|end\s*if\)$','W')
       " Nested long IF, ELSE IF, ELSE or ENDIF found
-      echo '--- IF, ELSE or ENDIF found'
-      echo 'line: '.getline('.')
+      "echo '  XXX IF, ELSE or ENDIF found'
+      "echo '  XXX line: '.getline('.')
       if strpart(getline('.'),0,2)=='if'
         " Nested long IF
         let l:unclosedConditionals=l:unclosedConditionals+1
@@ -573,7 +582,7 @@ function! SinBasicIfEndif()
     call cursor(l:ifLineNumber,'$')
   endwhile
 
-  call SinBasicExitDo()
+  call SinBasicSaveStep('if_endif')
 
 endfunction
 
@@ -599,7 +608,8 @@ function! SinBasicProcedures()
   " DEF PROC and END PROC must be the only statements of the line.
   " The space is optional: DEFPROC and ENDPROC are valid.
   " EXIT PROC must be at the end of the line.
-  " PROC must be used to call a procedure.
+  " CALL must be used to call a procedure, but it can be changed
+  " to anything (even to an empty string) with '#procedureCall'.
 
   " Description:
 
@@ -610,7 +620,7 @@ function! SinBasicProcedures()
 
   call cursor(1,1)
   while search('^def\s\?proc\>','Wc')
-    echo '--- DEF PROC found at line '.line('.').': '.getline('.')
+    "echo '  XXX DEF PROC found at line '.line('.').': '.getline('.')
     let l:procLineNumber=line('.')
     let l:procLine=getline('.')
     let l:procNamePos=matchend(l:procLine,'^def\s\?proc\s\+')
@@ -618,18 +628,24 @@ function! SinBasicProcedures()
     if len(l:procName)==0
       echo 'Error: DEF PROC bad syntax at line '.l:procLineNumber
     else
-      echo 'valid proc name: '.l:procName
+      "echo '  XXX valid proc name: '.l:procName
       let l:procLabel='@proc'.l:procLineNumber
-      echo 'proc label: '.l:procLabel
+      "echo '  XXX proc label: '.l:procLabel
       call setline(l:procLineNumber,l:procLabel)
       call cursor(l:procLineNumber,'^')
-      execute '%substitute,\<'.s:procedureCall.'\s\+'.l:procName.'\>,gosub '.l:procLabel.',gei'
+      if len(s:procedureCall)
+        execute 'silent! %substitute,\<'.s:procedureCall.'\s\+'.l:procName.'\>,gosub '.l:procLabel.',gei'
+      else
+        execute 'silent! %substitute,\<'.l:procName.'\>,gosub '.l:procLabel.',gei'
+      endif
     endif
   endwhile
 
-  silent %substitute,\<exit proc$$,return,ei
-  silent %substitute,^end\s\?proc$,return,ei
+  silent! %substitute,\<exit proc$$,return,ei
+  silent! %substitute,^end\s\?proc$,return,ei
 
+  call SinBasicSaveStep('procedures')
+  
 endfunction
 
 function! XXXSinBasicProcedures()
@@ -664,7 +680,7 @@ function! XXXSinBasicProcedures()
 
   call cursor(1,1)
   while search('^def\s\?proc\>','Wc')
-    echo '--- DEF PROC found at line '.line('.').': '.getline('.')
+    "echo '  XXX DEF PROC found at line '.line('.').': '.getline('.')
     let l:procLineNumber=line('.')
     let l:procLine=getline('.')
     let l:procNamePos=matchend(l:procLine,'^def\s\?proc\s\+')
@@ -729,6 +745,8 @@ function! SinBasicVim()
     echo l:vimCommands 'Vim commands executed.'
   endif
 
+  call SinBasicSaveStep('vim_commands')
+  
 endfunction
 
 function! SinBasicInclude()
@@ -762,6 +780,8 @@ function! SinBasicInclude()
     echo l:includedFiles 'files included.'
   endif
 
+  call SinBasicSaveStep('included_files')
+  
 endfunction
 
 " ----------------------------------------------
@@ -776,6 +796,8 @@ function! SinBasicConfig()
   call SinBasicFirstLine()
   " #procedurecall <command name>
   call SinBasicProcedureCall()
+  
+  call SinBasicSaveStep('config_values')
 
 endfunction
 
@@ -816,11 +838,9 @@ function! SinBasicProcedureCall()
   let s:procedureCall='call' " default value
   
   call cursor(1,1) " Go to the top of the file.
-  if search('^\s*#procedurecall\s\+[0-9]\+\>','Wc')
-    " Store the string into register 'l':
-    normal ww"lyw
-    " And then into the variable:
-    let s:procedureCall=getreg('l',1)
+  if search('^\s*#procedurecall\>','Wc')
+    let l:valuePos=matchend(getline('.'),'^\s*#procedurecall\>')
+    let s:procedureCall=strpart(getline('.'),l:valuePos)
   endif
   echo 'Procedure call: '.s:procedureCall
 
@@ -898,6 +918,8 @@ function! SinBasicLabels()
 
   echo 'Labels translated.'
 
+  call SinBasicSaveStep('labels')
+  
 endfunction
 
 " ----------------------------------------------
@@ -924,6 +946,8 @@ function! SinBasicRenum()
 
   echo 'Line numbers added.'
 
+  call SinBasicSaveStep('line_numbers')
+
 endfunction
 
 " ----------------------------------------------
@@ -936,6 +960,8 @@ function! SinBasicTokens()
   silent! %s@\<gosub\>@go sub@ge
   silent! %s@\<goto\>@go to@ge
   silent! %s@\<deffn\>@def fn@ge
+
+  call SinBasicSaveStep('tokens_with_inner_space')
 
 endfunction
 
@@ -995,6 +1021,8 @@ function! SinBasicGraphs()
   silent! %s@\\{vi}@{INVERSE 1}@ge
   silent! %s@\\{vn}@{INVERSE 0}@ge
 
+  call SinBasicSaveStep('chars_from_basin_to_bas2tap')
+
 endfunction
 
 function! SinBasicChars()
@@ -1009,6 +1037,8 @@ function! SinBasicChars()
 
   echo 'Special chars translated.'
 
+  call SinBasicSaveStep('embedded_chars_in_basin_format')
+  
   if l:ignoreCaseBackup
     set ignorecase
   else
@@ -1036,8 +1066,9 @@ function! SinBasicBasfile()
   silent execute 'edit '.s:basFileName
 "  set fileencoding=latin1 " XXX TODO needed?
 
-
   echo 'BAS file created.'
+
+  call SinBasicSaveStep('bas_file')
 
 endfunction
 
@@ -1066,6 +1097,13 @@ function! XXX(message)
   endif
 endfunction
 
+function! SinBasicSaveStep(description)
+  " Save the current version of the converted file,
+  " for debugging purposes.
+  silent execute 'write! '.getreg('%').'.step_'.s:step.'_'.a:description
+  let s:step=s:step+1
+endfunction
+
 " ----------------------------------------------
 " Main
 
@@ -1076,16 +1114,19 @@ function! SinBasic2tap()
 
   let s:ignoreCaseBackup=&ignorecase
   set ignorecase
-  
-  call SinBasicConfig()
+
+  let s:step=0 " counter for the saved step files
+
+  echo "Converting Vimclair BASIC to Sinclair BASIC..." 
   call SinBasicBasfile()
+  call SinBasicConfig()
   call SinBasicInclude()
   call SinBasicVim()
   call SinBasicClean()
   call SinBasicControlStructures()
 
 " XXX TMP for debugging
-  if 0
+  if 1
  
   call SinBasicLabels()
   call SinBasicRenum()
