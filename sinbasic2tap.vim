@@ -1,7 +1,7 @@
 " sinbasic2tap.vim
 
 " SinBasic2tap
-" Version A-00-201408031316
+" Version A-00-201408041339
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -88,6 +88,11 @@
 " 2014-08-02:
 " New: Syntax description of labels. 
 
+" 2014-08-03:
+" New: First changes to implement procedure parameters.
+" Improvement: The directory of the source file is the working directory.
+" This lets '#include' paths relative to it. XXX not tested yet.
+
 " ----------------------------------------------
 
 function! SinBasicClean()
@@ -128,7 +133,7 @@ function! SinBasicDoLoop()
 
   let s:doStatement=''
 
-  echo '--- About to search a DO!'
+  echo '--- About to search for a DO!'
   call cursor(1,1)
   while search('^do\(\s\+\(until\|while\)\s\+.\+\)\?$','Wc')
     " first DO found
@@ -244,7 +249,7 @@ function! SinBasicExitDo()
 
   let s:doStatement=''
 
-  echo '--- About to search a EXIT DO!'
+  echo '--- About to search for an EXIT DO!'
   call cursor(1,1)
   while search('\<exit do$','Wc')
     echo '--- EXIT DO found!'
@@ -289,29 +294,31 @@ function! SinBasicElse()
 
   " Convert ELSE...ENDIF.
 
+  " XXX OLD -- This method can not work with nested conditionals.
+
   " Syntax:
 
   " ELSE must be at the start of a line. It can be followed by any other
   " command, with or without a separating semicolon.
 
   " ENDIF must be alone at its own line.
-  " The keyword can be written 'END IF' as well.
-
-  let s:doStatement=''
+  " It can be written 'END IF' as well.
 
   call cursor(1,1)
   while search('^else\>','Wc')
     echo '--- ELSE found at line '.line('.').': '.getline('.')
     let l:elseLineNumber=line('.')
-    " XXX TODO remove a possible ':' after 'else'.
-    call setline('.',strpart(getline('.'),4)) " remove the ELSE
-    " XXX TODO remove trailing spaces, use a regexp here:
-    if len(getline('.'))==0
+    let l:elseLine=getline('.')
+    let l:elsePartPos=matchend(l:elseLine,'else\(\(\s\|:\)\+\)\?')
+    let l:elsePart=strpart(l:elseLine,l:elsePartPos)
+    echo "l:elsePart: ".l:elsePart
+    call setline('.',l:elsePart) " remove the ELSE
+    if len(l:elsePart)==0
       silent substitute,\n,,
     endif
     if search('\<if .\+ then\>','Wb')
       echo '--- IF found at line '.line('.').': '.getline('.')
-      let l:exitLabel='@ifExit'.line('.')
+      let l:exitLabel='@endif'.line('.')
       call setline('.',getline('.').':goto '.l:exitLabel)
       call cursor(l:elseLineNumber,'^')
       if search('^end\s\?if$','W')
@@ -327,9 +334,100 @@ function! SinBasicElse()
   endwhile
 endfunction
 
-function! EXSinBasicProcedures()
+function! SinBasicIf()
 
-  " XXX OLD First version, without parameters.
+  " Convert all IF...ENDIF structures, even nested.
+
+  " XXX TODO finish
+
+  " The SinBasic IF...ENDIF structures are inspired by Andy Wright's Beta
+  " BASIC, SAM BASIC and MasterBASIC, but they are not identical.
+
+  " Syntax:
+  "
+  " Short IF structures are the same than Sinclair BASIC's.
+  "
+  "   IF condition THEN action
+  "
+  " Of course they can be splitted into any number of text lines:
+  " 
+  "   IF condition THEN \
+  "     action
+  "
+  " As usual, the splitting format does not affect the parsing,
+  " as long as the required spaces are preserved at the splitting points:
+  "
+  "   IF \
+  "     condition \
+  "   THEN \
+  "     action
+  "
+  " Long IF structures must have 'THEN' at the end of the actual source line,
+  " and the only ELSE of the structure must be on its own line:
+  "
+  "   IF condition1 THEN
+  "     code1
+  "   ELSE 
+  "     code2
+  "   ENDIF
+
+  let s:ifStatement=''
+
+  echo '--- About to search for a long IF!'
+  call cursor(1,1)
+  while search('^if .\+ then$','Wc')
+    " Main long IF found
+    echo '--- IF found!'
+    let l:ifLineNumber=line('.') " line number of the IF 
+    let l:ifLine=getline('.') " line of the IF 
+    let l:ifCondition='' " XXX TODO
+    let l:unclosedConditionals=1 " counter
+    let l:elseLineNumber=0 " used also as a flag
+    while search('^\(if\s\+.\+\s\+then\|else\|end\s*if\)$','W')
+      " Nested long IF, ELSE or ENDIF found
+      echo '--- IF, ELSE or ENDIF found'
+      echo 'line: '.getline('.')
+      if strpart(getline('.'),0,2)=='if'
+        " Nested long IF
+        let l:unclosedConditionals=l:unclosedConditionals+1
+      else if strpart(getline('.'),0,4)=='else'
+        " ELSE
+        if l:unclosedConditionals==1 " current?
+          let l:elseLineNumber=line('.')
+          let l:elseLabel='@else'+l:elseLineNumber
+          call setline('.',l:elseLabel)
+        endif
+      else
+        " ENDIF
+        let l:unclosedConditionals=l:unclosedConditionals-1
+        if l:unclosedConditionals==0 " current?
+          let l:endifLabel='@endif'.line('.')
+          call setline('.',l:endifLabel)
+          if l:elseLineNumber " there was an ELSE?
+            call cursor(l:elseLineNumber-1,1)
+            call append('goto '.l:endifLabel)
+            " XXX TODO -- jump from IF to ELSE
+
+          else
+            " XXX TODO -- jump from IF to ENDIF
+          endif
+          break
+        endif
+      endif
+    endwhile
+    if l:unclosedConditionals
+      echo 'Error: IF without ENDIF at line '.ifLineNumber
+    endif
+    call cursor(l:ifLineNumber,'$')
+  endwhile
+
+  call SinBasicExitDo()
+
+endfunction
+
+function! SinBasicProcedures()
+
+  " XXX First version, without parameters.
 
   " Convert DEF PROC, END PROC and EXIT PROC.
 
@@ -372,7 +470,7 @@ function! EXSinBasicProcedures()
 
 endfunction
 
-function! SinBasicProcedures()
+function! XXXSinBasicProcedures()
 
   " XXX second version, with parameters, unfinished
 
@@ -409,10 +507,15 @@ function! SinBasicProcedures()
     let l:procLine=getline('.')
     let l:procNamePos=matchend(l:procLine,'^def\s\?proc\s\+')
     let l:procName=strpart(l:procLine,l:procNamePos)
+    let l:procEndNamePos=matchend(l:procName,'^\S\+')
+    let l:procName=strpart(l:procName,0,l:procEndNamePos)
     echo 'l:procName: '.l:procName
     let l:procParametersPos=matchend(l:procLine,'^def\s\?proc\s\+\S\+\s\+')
-    let l:procParameters=strpart(l:procLine,l:procParametersPos)
-    echo 'l:procParameters: '.l:procParameters
+    echo 'l:procParametersPos: '.l:procParametersPos
+    if l:procParametersPos>-1
+      let l:procParameters=strpart(l:procLine,l:procParametersPos)
+      echo 'l:procParameters: '.l:procParameters
+    endif
     if len(l:procName)==0
       echo 'Error: DEF PROC bad syntax at line '.l:procLineNumber
     else
@@ -420,9 +523,11 @@ function! SinBasicProcedures()
       let l:procLabel='@proc'.l:procLineNumber
       echo 'proc label: '.l:procLabel
       call setline(l:procLineNumber,l:procLabel)
-      let l:procParametersList=matchlist(l:procParameters,l:procParametersPattern)
-      echo 'l:procParametersList:'
-      echo l:procParametersList
+      if l:procParametersPos>-1
+        let l:procParametersList=matchlist(l:procParameters,l:procParametersPattern)
+        echo 'l:procParametersList:'
+        echo l:procParametersList
+      endif
       call cursor(l:procLineNumber,'^')
       " XXX TODO make PROC optional in the calls:
       execute '%substitute,\<proc '.l:procName.'\>,gosub '.l:procLabel.',gei'
@@ -484,7 +589,7 @@ function! SinBasicInclude()
     "echo ':~' fnamemodify(l:fileName,':~')
     "echo ':p' fnamemodify(l:fileName,':p')
     " -----------
-    execute "silent! r ".l:fileName
+    execute "silent! r ".getcwd().'/'.l:fileName
   endwhile
 
   if l:includedFiles==0
@@ -720,12 +825,16 @@ function! SinBasicBasfile()
   " with the .bas extension added
   " and open it for editing.
 
+  " Change to the directory of the current file:
+  silent cd %:h
+
   silent update " Write the current SinBasic file if needed
   split " Split the window
   let s:basFileName=getreg('%').'.bas'
   silent execute 'write! '.s:basFileName
   silent execute 'edit '.s:basFileName
 "  set fileencoding=latin1 " XXX TODO needed?
+
 
   echo 'BAS file created.'
 
@@ -735,6 +844,16 @@ function! SinBasicTapFile()
   " XXX TODO check if bas2tap is installed
   silent execute '!bas2tap -q -w -c -n '.s:basFileName.' '.s:basFileName.'.tap'
   echo 'TAP file created.'
+endfunction
+
+" ----------------------------------------------
+" Debug
+
+function! XXX(message)
+  " XXX TODO
+  if true
+    echo message
+  endif
 endfunction
 
 " ----------------------------------------------
