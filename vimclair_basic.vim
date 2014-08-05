@@ -80,10 +80,43 @@
 
 " 2014-08-04: Check duplicated labels.
 
+" 2014-08-05: simulate ON with jumps.
+
+" 2014-08-05: #define
+"
+" 2014-08-05: INARRAY, INSTR and TRUNC$, SHIFT$ in machine code, in a REM.
+
+" 2014-08-05: EXIT IF x -> IF x THEN EXIT DO
+
+" 2014-08-05: check all identifiers are matched at the start of the line or
+" after a colon; this will prevent some mismatchs in text strings.
+
+" 2014-08-05: XXX FIXME
+" This code:
+
+"    do
+"      let i$=inkey$
+"    loop until i$<>""
+"    do
+"    loop until inkey$=""
+
+" Is converted to:
+
+"27 print 'prompt$;cursor$;
+"<<<<<<<<<<< empty
+"28 let i$=inkey$
+"29 if not (i$<>"") then go to 29 <<<<<<<<<!
+"<<<<<<<<< empty
+"30 if not (inkey$="") then go to 32 <<<<<<<<<<!
+
+" But step 08, still with labels, is right!
+" Something gets wrong with the renumbering.
+
 " ----------------------------------------------
 " History
 
-" 2014-07-26: Started with the code of BBim2BB
+" 2014-07-26:
+" Started with the code of BBim2BB
 " (http://programandala.net/es.programa.bbim).
 " New: 'do...loop', 'do...loop until' and 'do...loop while' implemented.
 
@@ -100,7 +133,7 @@
 " New: 'exit do' implemented.
 " New: 'exit for' implemented.
 " New: 'else...endif' implemented.
-" New: The TAP file is created (with the bas2tap converter).
+" New: The TAP file is created (with the BAS2TAP converter).
 " New: Procedures (without parameters): 'defproc', 'endproc', 'exit proc', 'proc'.
 
 " 2014-08-02:
@@ -122,10 +155,14 @@
 " Fix: '#procedureCall' was not parsed.
 " Fix: Now 's:procedureCall' works also when empty.
 
-" 2014-08-04:
+" 2014-08-05:
 " New: Version A-03: the program saves copies of the file after every
 " conversion step, for debugging.
 " Change: The project and all its files are renamed and reorganized.
+" Fix: Some procedures were not converted, because the search position
+" was not restored in the loop.
+
+" 2014-08-04:
 
 " ----------------------------------------------
 
@@ -362,7 +399,7 @@ function! VimclairElse()
       let l:exitLabel='@endif'.line('.')
       call setline('.',getline('.').':goto '.l:exitLabel)
       call cursor(l:elseLineNumber,'^')
-      if search('^end\s\?if$','W')
+      if search('^end\s*if$','W')
         call setline('.',l:exitLabel)
       else
         echo 'Error: ELSE without ENDIF at line '.elseLineNumber
@@ -623,30 +660,33 @@ function! VimclairProcedures()
   let s:doStatement=''
 
   call cursor(1,1)
-  while search('^def\s\?proc\>','Wc')
+  while search('^def\s*proc\>','Wc')
     "echo '  XXX DEF PROC found at line '.line('.').': '.getline('.')
     let l:procLineNumber=line('.')
     let l:procLine=getline('.')
-    let l:procNamePos=matchend(l:procLine,'^def\s\?proc\s\+')
+    let l:procNamePos=matchend(l:procLine,'^def\s*proc\s\+')
     let l:procName=strpart(l:procLine,l:procNamePos)
     if len(l:procName)==0
-      echo 'Error: DEF PROC bad syntax at line '.l:procLineNumber
+      echo 'Error: DEF PROC without name at line '.l:procLineNumber
     else
+      " XXX FIXME some procs are not converted
       "echo '  XXX valid proc name: '.l:procName
-      let l:procLabel='@proc'.l:procLineNumber
+      let l:procLabel='@proc_'.l:procName
       "echo '  XXX proc label: '.l:procLabel
       call setline(l:procLineNumber,l:procLabel)
       call cursor(l:procLineNumber,'^')
+      "echo '  XXX #procedureCall: <'.s:procedureCall.'>'
       if len(s:procedureCall)
         execute 'silent! %substitute,\<'.s:procedureCall.'\s\+'.l:procName.'\>,gosub '.l:procLabel.',gei'
       else
         execute 'silent! %substitute,\<'.l:procName.'\>,gosub '.l:procLabel.',gei'
       endif
     endif
+    call cursor(l:procLineNumber,'$')
   endwhile
 
-  silent! %substitute,\<exit proc$$,return,ei
-  silent! %substitute,^end\s\?proc$,return,ei
+  silent! %substitute,\<exit\s*proc$,return,ei
+  silent! %substitute,^end\s\*proc$,return,ei
 
   call VimclairSaveStep('procedures')
   
@@ -683,16 +723,16 @@ function! XXXVimclairProcedures()
   echo 'l:procParametersPattern: '.l:procParametersPattern
 
   call cursor(1,1)
-  while search('^def\s\?proc\>','Wc')
+  while search('^def\s*proc\>','Wc')
     "echo '  XXX DEF PROC found at line '.line('.').': '.getline('.')
     let l:procLineNumber=line('.')
     let l:procLine=getline('.')
-    let l:procNamePos=matchend(l:procLine,'^def\s\?proc\s\+')
+    let l:procNamePos=matchend(l:procLine,'^def\s*proc\s\+')
     let l:procName=strpart(l:procLine,l:procNamePos)
     let l:procEndNamePos=matchend(l:procName,'^\S\+')
     let l:procName=strpart(l:procName,0,l:procEndNamePos)
     echo 'l:procName: '.l:procName
-    let l:procParametersPos=matchend(l:procLine,'^def\s\?proc\s\+\S\+\s\+')
+    let l:procParametersPos=matchend(l:procLine,'^def\s*proc\s\+\S\+\s\+')
     echo 'l:procParametersPos: '.l:procParametersPos
     if l:procParametersPos>-1
       let l:procParameters=strpart(l:procLine,l:procParametersPos)
@@ -716,8 +756,8 @@ function! XXXVimclairProcedures()
     endif
   endwhile
 
-  silent %substitute,\<exit proc$$,return,ei
-  silent %substitute,^end\s\?proc$,return,ei
+  silent %substitute,\<exit\s*proc$$,return,ei
+  silent %substitute,^end\s*proc$,return,ei
 
 endfunction
 
@@ -959,7 +999,7 @@ endfunction
 
 function! VimclairTokens()
 
-  " Modify some tokens to the format required by bas2tap.
+  " Modify some tokens to the format required by BAS2TAP.
 
   silent! %s@\<gosub\>@go sub@ge
   silent! %s@\<goto\>@go to@ge
@@ -1077,9 +1117,25 @@ function! VimclairBasfile()
 endfunction
 
 function! VimclairTapFile()
+
   " XXX TODO check if bas2tap is installed
-  silent execute '!bas2tap -q -w -c -n '.s:basFileName.' '.s:basFileName.'.tap'
+
+  "   BAS2TAP v2.4 by Martijn van der Heide of ThunderWare Research Center
+  "   
+  "   Usage: BAS2TAP [-q] [-w] [-e] [-c] [-aX] [-sX] FileIn [FileOut]
+  "          -q = quiet: no banner, no progress indication
+  "          -w = suppress generation of warnings
+  "          -e = write errors to stdout in stead of stderr channel
+  "          -c = case independant tokens (be careful here!)
+  "          -n = disable syntax checking
+  "          -a = set auto-start line in BASIC header
+  "          -s = set "filename" in BASIC header
+
+  " XXX TODO config with directives
+  " XXX TODO show possible errors
+  execute '!bas2tap -q -c -n '.s:basFileName.' '.s:basFileName.'.tap'
   echo 'TAP file created.'
+
 endfunction
 
 " ----------------------------------------------
@@ -1102,20 +1158,24 @@ function! XXX(message)
 endfunction
 
 function! VimclairSaveStep(description)
-  " Save the current version of the converted file,
+
+  " Save the current version of the file being converted,
   " for debugging purposes.
-  silent execute 'write! '.getreg('%').'.step_'.s:step.'_'.a:description
+ 
+  let l:number='00'.s:step
+  let l:number=strpart(l:number,len(l:number)-2)
+  silent execute 'write! '.getreg('%').'.step_'.l:number.'_'.a:description
   let s:step=s:step+1
+
 endfunction
 
 " ----------------------------------------------
 " Main
 
-function! Vimclair2tap()
+function! VimclairBASIC()
 
   let s:shortmessBackup=&shortmess
   set shortmess=at
-
   let s:ignoreCaseBackup=&ignorecase
   set ignorecase
 
@@ -1145,13 +1205,8 @@ function! Vimclair2tap()
   
   endif
 
-  if s:ignoreCaseBackup
-    set ignorecase
-  else
-    set noignorecase
-  endif
-" XXX TODO
-"  set shortmess=l:shortmessBackup
+  let &ignorecase=s:ignoreCaseBackup
+  let &shortmess=s:shortmessBackup
 
   echo 'Done!'
 
@@ -1159,7 +1214,7 @@ endfunction
 
 " Shortkey ',sb' in normal mode
 " to create a Beta BASIC file:
-nmap <silent> ,vb :call Vimclair2tap()<CR>
+nmap <silent> ,vb :call VimclairBASIC()<CR>
 
 echo 'Vimclair BASIC converter'
 echo '========================'
@@ -1167,4 +1222,4 @@ echo 'While you are editing your Vimclair BASIC source,'
 echo 'you can run the converter just typing the following 3 keys'
 echo '(in Vim normal mode): ,vb'
 
-" vim:tw=78:ts=2:et:
+" vim:tw=78:ts=2:sts=2:et:
