@@ -1,0 +1,67 @@
+= History CE4 in Vimclair BASIC
+:author: Marcos Cruz (programandala.net)
+:revdate: 2014-08-05
+
+== 2014-07-26
+
+- Started with the code of BBim2BB
+  (http://programandala.net/es.programa.bbim).
+- New: 'do...loop', 'do...loop until' and 'do...loop while'
+  implemented.
+
+== 2014-07-27
+
+- New: First draft of 'do until...loop', 'do while...loop' and nested
+  loops.
+
+== 2014-07-31
+
+- Fix: Some local variables have been changed to script variables.
+
+== 2014-08-01
+
+- Fix: All nine combinations of 'do...loop' work fine.
+- New: Nested loops finished.
+- New: 'exit do' implemented.
+- New: 'exit for' implemented.
+- New: 'else...endif' implemented.
+- New: The TAP file is created (with the BAS2TAP converter).
+- New: Procedures (without parameters): 'defproc', 'endproc', 'exit
+  proc', 'proc'.
+
+== 2014-08-02
+
+- New: Syntax description of labels. 
+
+== 2014-08-03
+
+- New: First changes to implement procedure parameters.
+- Improvement: The directory of the source file is the working
+  directory.  This lets '#include' paths relative to it. XXX not
+  tested yet.
+
+== 2014-08-04
+
+- Improvement: Long 'if...else...endif' structures; the previous
+  'else...endif' method is removed.
+- New: '#procedurecall' lets to configure the command used to call the
+  a procedure (the default is 'call'), or make it empty.
+- Change: Version A-01: first usable version, with loops and long
+  conditional structures.
+- New: Version A-02: long conditionals can be nested.
+- Fix: '#procedureCall' was not parsed.
+- Fix: Now 's:procedureCall' works also when empty.
+
+== 2014-08-05
+
+- New: Version A-03: the program saves copies of the file after every
+  conversion step, for debugging.
+- Change: The project and all its files are renamed and reorganized.
+- Fix: Some procedures were not converted, because the search position
+  was not restored in the loop.
+- Fix: Removed a feature of BBim: Remove line numbers from import-time
+  commands.
+- Fix: --body-numbering=a was needed by the  nl tool. Otherwise empty
+  lines that holded a lonely label were not numbered, and the label
+  values didn't match anymore.
+

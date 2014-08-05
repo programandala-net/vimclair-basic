@@ -1,7 +1,7 @@
 " vimclair_basic.vim
 
-" Vimclair BASIC converter
-" Version A-03-201408042326
+" Vimclair BASIC
+" Version A-03-201408051953
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -45,124 +45,11 @@
 "     #procedureCall
 
 " ----------------------------------------------
-" To-do list
+" To-do and change log
 
-" 2014-08-01: Improve: The parens used by 'NOT' to enclose the 'WHILE',
-" 'UNTIL' of 'IF' expressions can be ommited in certain cases.
-
-" 2014-08-01: 'EXIT DO n', to exit the n-th loop.
-
-" 2014-08-01: Procedures with parameters. Idea:
-" Original:
-"   myproc 123,"hello"
-"   stop
-"   defproc myproc arg1,a$
-"     print arg1,a$
-"   endproc
-" Conversion:
-"   let arg1=123:let a$="hello":gosub @myproc
-"   stop
-"   @myproc
-"   print arg1,a$
-"   return
-
-" 2014-08-04: 'ELSE IF' statement.
-
-" 2014-08-04: 'CASE' structure.
-
-" 2014-08-04: Optimize the chained jumps created by the control structures.
-" Example code:
-"
-"   if not(a<30) then goto @endif10 <<<<----- change to @endif2
-"   print "20 to 29"
-"   @endif10
-"   goto @endif2
-
-" 2014-08-04: Check duplicated labels.
-
-" 2014-08-05: simulate ON with jumps.
-
-" 2014-08-05: #define
-"
-" 2014-08-05: INARRAY, INSTR and TRUNC$, SHIFT$ in machine code, in a REM.
-
-" 2014-08-05: EXIT IF x -> IF x THEN EXIT DO
-
-" 2014-08-05: check all identifiers are matched at the start of the line or
-" after a colon; this will prevent some mismatchs in text strings.
-
-" 2014-08-05: XXX FIXME
-" This code:
-
-"    do
-"      let i$=inkey$
-"    loop until i$<>""
-"    do
-"    loop until inkey$=""
-
-" Is converted to:
-
-"27 print 'prompt$;cursor$;
-"<<<<<<<<<<< empty
-"28 let i$=inkey$
-"29 if not (i$<>"") then go to 29 <<<<<<<<<!
-"<<<<<<<<< empty
-"30 if not (inkey$="") then go to 32 <<<<<<<<<<!
-
-" But step 08, still with labels, is right!
-" Something gets wrong with the renumbering.
-
-" ----------------------------------------------
-" History
-
-" 2014-07-26:
-" Started with the code of BBim2BB
-" (http://programandala.net/es.programa.bbim).
-" New: 'do...loop', 'do...loop until' and 'do...loop while' implemented.
-
-" 2014-07-27:
-" New: First draft of 'do until...loop', 'do while...loop' and nested
-" loops.
-
-" 2014-07-31:
-" Fix: Some local variables have been changed to script variables.
-
-" 2014-08-01:
-" Fix: All nine combinations of 'do...loop' work fine.
-" New: Nested loops finished.
-" New: 'exit do' implemented.
-" New: 'exit for' implemented.
-" New: 'else...endif' implemented.
-" New: The TAP file is created (with the BAS2TAP converter).
-" New: Procedures (without parameters): 'defproc', 'endproc', 'exit proc', 'proc'.
-
-" 2014-08-02:
-" New: Syntax description of labels. 
-
-" 2014-08-03:
-" New: First changes to implement procedure parameters.
-" Improvement: The directory of the source file is the working directory.
-" This lets '#include' paths relative to it. XXX not tested yet.
-
-" 2014-08-04:
-" Improvement: Long 'if...else...endif' structures; the previous
-" 'else...endif' method is removed.
-" New: '#procedurecall' lets to configure the command used to call the a
-" procedure (the default is 'call'), or make it empty.
-" Change: Version A-01: first usable version, with loops and long
-" conditional structures.
-" New: Version A-02: long conditionals can be nested.
-" Fix: '#procedureCall' was not parsed.
-" Fix: Now 's:procedureCall' works also when empty.
-
-" 2014-08-05:
-" New: Version A-03: the program saves copies of the file after every
-" conversion step, for debugging.
-" Change: The project and all its files are renamed and reorganized.
-" Fix: Some procedures were not converted, because the search position
-" was not restored in the loop.
-
-" 2014-08-04:
+" See the files:
+" <vimclair_basic.pending.adoc>
+" <vimclair_basic.history.adoc>
 
 " ----------------------------------------------
 
@@ -686,7 +573,7 @@ function! VimclairProcedures()
   endwhile
 
   silent! %substitute,\<exit\s*proc$,return,ei
-  silent! %substitute,^end\s\*proc$,return,ei
+  silent! %substitute,^end\s*proc$,return,ei
 
   call VimclairSaveStep('procedures')
   
@@ -891,7 +778,7 @@ function! VimclairProcedureCall()
 endfunction
 
 " ----------------------------------------------
-" Labels
+" Labels and line numbers
 
 function! VimclairLabels()
 
@@ -912,7 +799,9 @@ function! VimclairLabels()
 
   " Join every lonely label to its following line
   " (unless its following line has another label definition):
-  silent %substitute,^\(@[0-9a-zA-Z_]\+\)\s*:\?\n\([^@]\),\1:\2,ei
+" XXX TMP commented out for debugging
+"  silent %substitute,^\(@[0-9a-zA-Z_]\+\)\s*:\?\n\([^@]\),\1:\2,ei
+"  call VimclairSaveStep('labels-joined')
 
   " Create an empty dictionary to store the line numbers of the labels;
   " the labels will be used as keys:
@@ -929,16 +818,19 @@ function! VimclairLabels()
 "    echo 'Raw label found: <' . getreg('l',1) . '>'
 "    let l:label=tolower(getreg('l',1))
     let l:label=getreg('l',1)
+    let l:labelValue=line('.')+s:firstLine-1
     " XXX debug check
-"    echo 'Clean label: <' . l:label . '>'
+    "echo '  XXX Clean label: <' . l:label . '> = '.l:labelValue
     " Use the label as the key to its line number:
-    let l:lineNumber[l:label]=line('.')+s:firstLine-1
+    let l:lineNumber[l:label]=l:labelValue
     " Go to the next word:
     normal w
   endwhile
 
   " Remove all label definitions:
   silent! %substitute/^@[0-9a-zA-Z_]\+\s*:\?\s*//ei
+
+  call VimclairSaveStep('label_definitions_removed')
 
   " Substitute every label reference with its line number:
   for l:label in keys(l:lineNumber)
@@ -954,11 +846,9 @@ function! VimclairLabels()
     endwhile
   endfor
 
-  if l:ignoreCaseBackup
-    set ignorecase
-  else
-    set noignorecase
-  endif
+  call VimclairSaveStep('labels_substituted')
+
+  let &ignorecase=l:ignoreCaseBackup
 
   echo 'Labels translated.'
 
@@ -966,13 +856,10 @@ function! VimclairLabels()
   
 endfunction
 
-" ----------------------------------------------
-" Renum
-
 function! VimclairRenum()
 
   " Call the nl program (part of the Debian coreutils package):
-  execute "silent! %!nl --body-numbering=t --number-format=rn --number-width=5 --number-separator=' ' --starting-line-number=".s:firstLine." --line-increment=1"
+  execute "silent! %!nl --body-numbering=t --number-format=rn --number-width=5 --number-separator=' ' --starting-line-number=".s:firstLine." --line-increment=1 --body-numbering=a"
 
   " In older versions of coreutils,
   " -v sets the first line number, and -i sets the line increment.
@@ -982,11 +869,12 @@ function! VimclairRenum()
   " http://www.gnu.org/software/coreutils/manual/coreutils.html#nl-invocation
 
   " Remove spaces before line numbers
-  " (nl has no option to remove them):
-  silent! %substitute/^\s*//e
-
-  " Remove line numbers from import-time commands
-  silent! %substitute/^[0-9]\{1,4}\s://e
+  " (nl's --number-width=1 would do this too):
+  " XXX TMP commented out for debugging
+"  silent! %substitute/^\s*//e
+  
+  " Remove empty lines
+  silent! %substitute/^\s*\d\+\s\+\n//e
 
   echo 'Line numbers added.'
 
@@ -1083,11 +971,7 @@ function! VimclairChars()
 
   call VimclairSaveStep('embedded_chars_in_basin_format')
   
-  if l:ignoreCaseBackup
-    set ignorecase
-  else
-    set noignorecase
-  endif
+  let &ignorecase=l:ignoreCaseBackup
 
 endfunction
 

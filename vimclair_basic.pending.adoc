@@ -1,0 +1,93 @@
+= To-do list of CE4 in Vimclair BASIC
+:author: Marcos Cruz (programandala.net)
+:revdate: 2014-08-05
+
+== 2014-08-01
+
+- Improve: The parens used by 'NOT' to enclose the 'WHILE',
+
+- 'UNTIL' of 'IF' expressions can be ommited in certain cases.
+
+- 'EXIT DO n', to exit the n-th loop.
+
+- Procedures with parameters. Idea:
+
+Original:
+
+----
+   myproc 123,"hello"
+   stop
+   defproc myproc arg1,a$
+     print arg1,a$
+   endproc
+----
+
+Conversion:
+
+----
+   let arg1=123:let a$="hello":gosub @myproc
+   stop
+   @myproc
+   print arg1,a$
+   return
+----
+
+== 2014-08-04
+
+- 'CASE' structure.
+
+- Optimize the chained jumps created by the control structures.
+
+Example code:
+
+----
+   if not(a<30) then goto @endif10 <<<<----- change to @endif2
+   print "20 to 29"
+   @endif10
+   goto @endif2
+----
+
+- Check duplicated labels.
+
+== 2014-08-05
+
+- simulate ON with jumps.
+
+- #define
+
+- INARRAY, INSTR and TRUNC$, SHIFT$ in machine code, in a REM.
+
+- EXIT IF x -> IF x THEN EXIT DO
+
+- check all identifiers are matched at the start of the line or after
+  a colon; this will prevent some mismatchs in text strings.
+
+- FIX
+
+This code:
+
+----
+    do
+      let i$=inkey$
+    loop until i$<>""
+    do
+    loop until inkey$=""
+----
+
+Is converted to:
+
+----
+27 print 'prompt$;cursor$;
+<<<<<<<<<<< empty
+28 let i$=inkey$
+29 if not (i$<>"") then go to 29 <<<<<<<<<!
+<<<<<<<<< empty
+30 if not (inkey$="") then go to 32 <<<<<<<<<<!
+----
+
+But step 08, still with labels, is right!
+Something gets wrong with the renumbering.
+
+- Fix: label definitions with uppercase letters are not recognized and
+  removed.
+
