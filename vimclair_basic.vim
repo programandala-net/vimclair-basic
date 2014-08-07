@@ -1,7 +1,7 @@
 " vimclair_basic.vim
 
 " Vimclair BASIC
-" Version A-03-201408051953
+" Version A-03-201408070448
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -190,7 +190,7 @@ function! VimclairLoop()
   " Create a label after the end of the loop
   " (it may be needed by DO WHILE, DO UNTIL or EXIT DO):
   let l:loopExitLabel='@loopExit'.s:doLineNumber
-  call append('.',l:loopExitLabel)
+  call append(line('.'),l:loopExitLabel)
 
   " Finish the DO if necessary:
   if s:doStatement!=''
@@ -243,7 +243,7 @@ function! VimclairExitFor()
     if search('\<next [a-z]\>','W')
       "echo '  XXX NEXT found at line '.line('.').': '.getline('.')
       let l:exitLabel='@forExit'.line('.')
-      call append('.',l:exitLabel)
+      call append(line('.'),l:exitLabel)
       call cursor(l:exitForLineNumber,'^')
       execute 'silent! substitute,\<exit for\>,goto '.l:exitLabel.',ei'
     else
@@ -477,7 +477,7 @@ function! VimclairIfEndif()
             echo 'Error: Second ELSE at line '.line('.')
             break
           else
-            call append('.'-1,'goto '.l:endifLabel)
+            call append(line('.')-1,'goto '.l:endifLabel)
             let l:elseLineNumber=line('.')
             " Make the previous condition jump here when false:
             let l:elseLabel='@else'.l:ifLineNumber
@@ -485,7 +485,7 @@ function! VimclairIfEndif()
             call setline(l:conditionLineNumber,l:newIf)
             call setline('.',l:elseLabel)
             " Keep the current condition:
-            let l:conditionLineNumber=line('.')
+            let l:conditionLineNumber=line('.') " XXX needed?
             let l:condition=''
           endif
         endif
@@ -663,6 +663,7 @@ function! VimclairVim()
     let l:vimCommands += 1
     let l:vimCommandLine = line('.')
     let l:vimCommand=matchstr(getline(l:vimCommandLine),'\S\+.*',4)
+    " XXX TODO make 'silent' configurable:
     execute 'silent! '.l:vimCommand
     call cursor(l:vimCommandLine,1) " Return to the command line.
     call setline('.','') " Blank the line.
@@ -799,9 +800,8 @@ function! VimclairLabels()
 
   " Join every lonely label to its following line
   " (unless its following line has another label definition):
-" XXX TMP commented out for debugging
-"  silent %substitute,^\(@[0-9a-zA-Z_]\+\)\s*:\?\n\([^@]\),\1:\2,ei
-"  call VimclairSaveStep('labels-joined')
+  silent %substitute,^\(@[0-9a-zA-Z_]\+\)\s*:\?\n\([^@]\),\1:\2,ei
+  call VimclairSaveStep('labels-joined')
 
   " Create an empty dictionary to store the line numbers of the labels;
   " the labels will be used as keys:
@@ -985,18 +985,16 @@ function! VimclairBasfile()
   " and open it for editing.
 
   " Change to the directory of the current file:
-  silent cd %:h
+  " XXX OLD
+"  silent cd %:h
 
   silent update " Write the current Vimclair BASIC file if needed
   split " Split the window
-  let s:basFileName=getreg('%').'.bas'
+  let s:basFileName=expand('%:r').'.bas'
   silent execute 'write! '.s:basFileName
   silent execute 'edit '.s:basFileName
-"  set fileencoding=latin1 " XXX TODO needed?
 
   echo 'BAS file created.'
-
-  call VimclairSaveStep('bas_file')
 
 endfunction
 
@@ -1017,7 +1015,10 @@ function! VimclairTapFile()
 
   " XXX TODO config with directives
   " XXX TODO show possible errors
-  execute '!bas2tap -q -c -n '.s:basFileName.' '.s:basFileName.'.tap'
+  let l:tapFileName=expand('%:r').'.tap'
+  let l:ZXSpectrumFileName=expand('%:r')
+  execute '!bas2tap -q -c -n -s'.l:ZXSpectrumFileName.' '.s:basFileName.' '.l:tapFileName
+  " XXX TODO only if no error happened:
   echo 'TAP file created.'
 
 endfunction
@@ -1045,10 +1046,12 @@ function! VimclairSaveStep(description)
 
   " Save the current version of the file being converted,
   " for debugging purposes.
- 
+
+  " XXX TODO better, add 0 if s:step<10 
   let l:number='00'.s:step
   let l:number=strpart(l:number,len(l:number)-2)
-  silent execute 'write! '.getreg('%').'.step_'.l:number.'_'.a:description
+  " XXX TODO make the trace dir configurable
+  silent execute 'write! trace/'.getreg('%').'.step_'.l:number.'_'.a:description
   let s:step=s:step+1
 
 endfunction
@@ -1080,6 +1083,8 @@ function! VimclairBASIC()
   call VimclairRenum()
   call VimclairChars()
   call VimclairTokens()
+
+  silent! %s/\n$//e " Remove the empty lines
 
   silent w
   silent bw 
