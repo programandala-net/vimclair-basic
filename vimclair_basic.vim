@@ -1,7 +1,7 @@
 " vimclair_basic.vim
 
 " Vimclair BASIC
-" Version A-03-201408070448
+" Version A-03-201408102105
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -13,17 +13,17 @@
 " ----------------------------------------------
 "  Description
 
-" This program, written in Vim Script, converts a Vimclar BASIC source code to
-" an actual Sinclair BASIC program stored in a TAP file.
+" This program, written in Vim Script, converts a Vimclair BASIC source code
+" into an actual Sinclair BASIC program in a TAP file.
 
 " Vimclair BASIC offers the following advantages over Sinclair BASIC:
 "
 " - C-style block and line comments.
 " - Bash-style line comments.
 " - Labels instead of line numbers.
-" - Long variable names for strings, arrays and for loops (using the #vim
+" - Long variable names for strings, arrays and FOR loops (using the #vim
 "   directive).
-" - Control structures:
+" - Control structures (can be nested):
 "   - DO ... LOOP
 "   - DO ... LOOP UNTIL
 "   - DO ... LOOP WHILE
@@ -35,7 +35,8 @@
 "   - DO WHILE ... LOOP WHILE
 "   - EXIT DO
 "   - EXIT FOR
-"   - IF ... ELSE IF ... ELSE ... ENDIF
+"   - IF ... ELSE ... ENDIF
+"     (with any number of optional ELSE IF)
 " - Procedures (without parameters):
 "   - DEF PROC, END PROC, EXIT PROC, CALL.
 "   (Procedures with parameters can simulated ad hoc with the #vim directive.)
@@ -57,7 +58,14 @@ function! VimclairClean()
 
   " Clean the source code.
 
-  silent! %s/^\s*#.*$//e " Remove the metacomments
+  " Save the #vim commands
+  let l:mark='vimcommand'.localtime()
+  execute 'silent! %s/^\s*#vim\>/'.l:mark.'/ei'
+  " Remove the metacomments
+  silent! %s/^\s*#.*$//e
+  " Restore the #vim commands
+  execute 'silent! %s/^'.l:mark.'/#vim/e'
+
   silent! %s/\s*\/\/.*$//e " Remove the // line comments
   silent! %s,^\s*\/\*\_.\{-}\*\/,,e " Remove the /* */ block comments
   silent! %s/^\s\+//e " Remove indentation
@@ -669,6 +677,8 @@ function! VimclairVim()
     call setline('.','') " Blank the line.
   endwhile
 
+  silent! %s/^\n//e " Remove the empty lines
+
   if l:vimCommands==0
     echo 'No Vim command found.'
   elseif l:vimCommands==1
@@ -692,16 +702,16 @@ function! VimclairInclude()
   let l:includedFiles=0 " Counter
   while search('^\s*#include\s','Wc')
     let l:includedFiles += 1
-    let l:fileName=matchstr(getline('.'),'\S\+.*',8)
+    let l:filename=matchstr(getline('.'),'\S\+.*',8)
     call setline('.','') " Blank the line.
     " ----------- XXX debug check
-    "echo '#include ' l:fileName
+    "echo '#include ' l:filename
     "echo 'getcwd()=' getcwd()
     "echo 'Modifications:'
-    "echo ':~' fnamemodify(l:fileName,':~')
-    "echo ':p' fnamemodify(l:fileName,':p')
+    "echo ':~' fnamemodify(l:filename,':~')
+    "echo ':p' fnamemodify(l:filename,':p')
     " -----------
-    execute "silent! r ".getcwd().'/'.l:fileName
+    execute "silent! r ".getcwd().'/'.l:filename
   endwhile
 
   if l:includedFiles==0
@@ -724,35 +734,38 @@ function! VimclairConfig()
   " Search and parse the config commands.  They can be anywhere in the source
   " but always at the start of a line (with optional indentation).
 
-  " #firstline <line number>
-  call VimclairFirstLine()
-  " #procedurecall <command name>
+  " #renumLine <line number>
+  call VimclairRenumLine()
+  " #procedureCall <command name>
   call VimclairProcedureCall()
+  " #runLine <line number>
+  call VimclairRunLine()
+  " #filename <filename>
+  call VimclairZXFilename()
   
   call VimclairSaveStep('config_values')
 
 endfunction
 
-function! VimclairFirstLine()
+function! VimclairRenumLine()
 
-  " Store into s:firstLine the first line number
+  " Store into s:renumLine the first line number
   " to be used by the final Sinclair BASIC program.
-  " The command #firstline can be used to set
+  " The command #renumLine can be used to set
   " the desired line number. Only the first occurence
-  " of #firstline will be used; it can be anywhere
+  " of #renumLine will be used; it can be anywhere
   " in the source but always at the start of a line
   " (with optional indentation).
 
-  let s:firstLine=1 " default value
+  let s:renumLine=1 " default value
   
   call cursor(1,1) " Go to the top of the file.
-  if search('^\s*#firstline\s\+[0-9]\+\>','Wc')
-    " Store the number into register 'l':
-    normal ww"lyw
-    " And then into the variable:
-    let s:firstLine=getreg('l',1)
+  if search('^\s*#renumline\>','Wc')
+    let l:valuePos=matchend(getline('.'),'^\s*#renumline\s*')
+    let s:renumLine=strpart(getline('.'),l:valuePos)
   endif
-  echo 'First line number: '.s:firstLine
+  " XXX TODO check the number
+  echo 'Renum line: '.s:renumLine
 
 endfunction
 
@@ -771,10 +784,55 @@ function! VimclairProcedureCall()
   
   call cursor(1,1) " Go to the top of the file.
   if search('^\s*#procedurecall\>','Wc')
-    let l:valuePos=matchend(getline('.'),'^\s*#procedurecall\>')
+    let l:valuePos=matchend(getline('.'),'^\s*#procedurecall\s*')
     let s:procedureCall=strpart(getline('.'),l:valuePos)
   endif
-  echo 'Procedure call: '.s:procedureCall
+
+  echo s:procedureCall ? 'Procedure call prefix: '.s:procedureCall : 'No procedure call prefix'
+
+endfunction
+
+function! VimclairRunLine()
+
+  " Config the auto-run line number.  Its default value is zero, what means no
+  " auto-run.
+
+  " The command #runLine can be used to set the desired line number. Only the
+  " first occurence of #runLine will be used; it can be anywhere in the source
+  " but always at the start of a line (with optional indentation).
+
+  let s:runLine=0 " default value (no auto-run)
+  call cursor(1,1) " Go to the top of the file.
+  if search('^\s*#runLine\>','Wc')
+    let l:valuePos=matchend(getline('.'),'^\s*#runLine\s*')
+    let s:runLine=strpart(getline('.'),l:valuePos)
+  endif
+
+  echo s:runLine==0 ? 'No auto-run' : 'Auto-run line: '.s:runLine
+
+endfunction
+
+function! VimclairZXFilename()
+
+  " XXX FIXME check valid filenames
+
+  " Config the filename used inside the TAP file.  Its default value is the
+  " name of the Vimclair BASIC source file, but without the filename
+  " extension.
+
+  " The command #filename can be used to set the desired filename. Only the
+  " first occurence of #filenamewill be used; it can be anywhere in the source
+  " but always at the start of a line (with optional indentation).
+
+  let s:zxFilename=expand('%:r') " default: source filename without extension
+  
+  call cursor(1,1) " Go to the top of the file.
+  if search('^\s*#filename\>','Wc')
+    let l:valuePos=matchend(getline('.'),'^#filename\s*')
+    let s:zxFilename=strpart(getline('.'),l:valuePos)
+  endif
+    
+  echo 'ZX Spectrum filename: '.s:zxFilename
 
 endfunction
 
@@ -818,7 +876,7 @@ function! VimclairLabels()
 "    echo 'Raw label found: <' . getreg('l',1) . '>'
 "    let l:label=tolower(getreg('l',1))
     let l:label=getreg('l',1)
-    let l:labelValue=line('.')+s:firstLine-1
+    let l:labelValue=line('.')+s:renumLine-1
     " XXX debug check
     "echo '  XXX Clean label: <' . l:label . '> = '.l:labelValue
     " Use the label as the key to its line number:
@@ -859,7 +917,7 @@ endfunction
 function! VimclairRenum()
 
   " Call the nl program (part of the Debian coreutils package):
-  execute "silent! %!nl --body-numbering=t --number-format=rn --number-width=5 --number-separator=' ' --starting-line-number=".s:firstLine." --line-increment=1 --body-numbering=a"
+  execute "silent! %!nl --body-numbering=t --number-format=rn --number-width=5 --number-separator=' ' --starting-line-number=".s:renumLine." --line-increment=1 --body-numbering=a"
 
   " In older versions of coreutils,
   " -v sets the first line number, and -i sets the line increment.
@@ -903,10 +961,11 @@ endfunction
 function! VimclairGraphs()
 
   " Translate graphics from BASin format to BAS2TAP format.
+
+  " XXX TODO make all BASin stuff optional
   
   " Block graphics (chars 128-143)
 
-  " XXX TODO
   silent! %s@\\  @{80}@ge
   silent! %s@\\ '@{81}@ge
   silent! %s@\\' @{82}@ge
@@ -949,7 +1008,6 @@ function! VimclairGraphs()
   silent! %s@\\[Uu]@{U}@ge
 
   " XXX TODO finish:
-
   silent! %s@\\{vi}@{INVERSE 1}@ge
   silent! %s@\\{vn}@{INVERSE 0}@ge
 
@@ -965,6 +1023,7 @@ function! VimclairChars()
   call VimclairGraphs()
 
   " Embedded ASCII codes (BASin format):
+  " XXX TODO make all BASin stuff optional
   silent! %s/\\#\(\d\+\)/\=nr2char(submatch(1))/g
 
   echo 'Special chars translated.'
@@ -990,9 +1049,9 @@ function! VimclairBasfile()
 
   silent update " Write the current Vimclair BASIC file if needed
   split " Split the window
-  let s:basFileName=expand('%:r').'.bas'
-  silent execute 'write! '.s:basFileName
-  silent execute 'edit '.s:basFileName
+  let s:basFilename=expand('%:r').'.bas'
+  silent execute 'write! '.s:basFilename
+  silent execute 'edit '.s:basFilename
 
   echo 'BAS file created.'
 
@@ -1013,11 +1072,15 @@ function! VimclairTapFile()
   "          -a = set auto-start line in BASIC header
   "          -s = set "filename" in BASIC header
 
-  " XXX TODO config with directives
+  " XXX TODO config with more directives
   " XXX TODO show possible errors
-  let l:tapFileName=expand('%:r').'.tap'
-  let l:ZXSpectrumFileName=expand('%:r')
-  execute '!bas2tap -q -c -n -s'.l:ZXSpectrumFileName.' '.s:basFileName.' '.l:tapFileName
+  let l:tapFilename=expand('%:r').'.tap'
+" XXX OLD
+"  if len(s:zxFilename)=0
+"    let s:zxFilename=expand('%:r')
+"  endif
+  let l:autorun=s:runLine ? ' -a'.s:runLine : ''
+  execute '!bas2tap -q -c -n'.l:autorun.' -s'.s:zxFilename.' '.s:basFilename.' '.l:tapFilename
   " XXX TODO only if no error happened:
   echo 'TAP file created.'
 
@@ -1072,8 +1135,8 @@ function! VimclairBASIC()
   call VimclairBasfile()
   call VimclairConfig()
   call VimclairInclude()
-  call VimclairVim()
   call VimclairClean()
+  call VimclairVim()
   call VimclairControlStructures()
 
 " XXX TMP for debugging
