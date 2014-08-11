@@ -1,7 +1,7 @@
 " vimclair_basic.vim
 
 " Vimclair BASIC
-" Version A-03-201408102105
+" Version A-03-201408112315
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -378,10 +378,10 @@ function! EXVimclairIfEndif()
           if l:elseLineNumber " there was an ELSE?
             call append(l:elseLineNumber-1,'goto '.l:endifLabel)
             " The IF must jump to ELSE
-            let l:newIf='if not('.l:condition.') then goto '.l:elseLabel
+            let l:newIf='if '.VimclairNot(l:condition).' then goto '.l:elseLabel
           else
             " The IF must jump to ENDIF
-            let l:newIf='if not('.l:condition.') then goto '.l:endifLabel
+            let l:newIf='if '.VimclairNot(l:condition).' then goto '.l:endifLabel
           endif
           call setline(l:ifLineNumber,l:newIf)
           break
@@ -469,7 +469,7 @@ function! VimclairIfEndif()
             call append(line('.')-1,'goto '.l:endifLabel)
             " Make the previous condition jump here when false:
             let l:elseIfLabel='@elseIf'.l:ifLineNumber.'_'.line('.')
-            let l:newIf='if not('.l:condition.') then goto '.l:elseIfLabel
+            let l:newIf='if '.VimclairNot(l:condition).' then goto '.l:elseIfLabel
             call setline(l:conditionLineNumber,l:newIf)
             call append(line('.')-1,l:elseIfLabel)
             " Keep the current condition:
@@ -489,7 +489,7 @@ function! VimclairIfEndif()
             let l:elseLineNumber=line('.')
             " Make the previous condition jump here when false:
             let l:elseLabel='@else'.l:ifLineNumber
-            let l:newIf='if not('.l:condition.') then goto '.l:elseLabel
+            let l:newIf='if '.VimclairNot(l:condition).' then goto '.l:elseLabel
             call setline(l:conditionLineNumber,l:newIf)
             call setline('.',l:elseLabel)
             " Keep the current condition:
@@ -503,7 +503,7 @@ function! VimclairIfEndif()
         if l:unclosedConditionals==0 " current IF structure?
           call setline('.',l:endifLabel)
           if len(l:condition) " is there an unresolved condition?
-            let l:newIf='if not('.l:condition.') then goto '.l:endifLabel
+            let l:newIf='if '.VimclairNot(l:condition).' then goto '.l:endifLabel
             call setline(l:conditionLineNumber,l:newIf)
           endif
           break
@@ -519,6 +519,38 @@ function! VimclairIfEndif()
   endwhile
 
   call VimclairSaveStep('if_endif')
+
+endfunction
+
+function! VimclairNot(expression)
+
+  " Return the opposite of the given expression.
+  " If the expression already has a NOT at the start, just remove it;
+  " otherwise, add a NOT to it.
+
+  let l:expression=a:expression
+  let l:expression=substitute(l:expression,'^\s*\(.\{-}\)\s*$','\1','')
+  " XXX Somehow, '\>' does not work in the following pattern, so
+  " '[ (]' is used insead:
+  if match(l:expression,"^not[ (]")==0
+    let l:expression=substitute(l:expression,'^not\s*\(.\{-}\)$','\1','')
+    let l:expression=VimclairWithoutParens(l:expression)
+  else
+    let l:expression='not('.l:expression.')'
+  endif
+  return l:expression
+
+endfunction
+
+function! VimclairWithoutParens(expression)
+
+  " Remove the outside parens from the given expression.
+
+  let l:expression=a:expression
+  while match(l:expression,'(')==0 && strpart(l:expression,len(l:expression)-1)==')'
+    let l:expression=substitute(l:expression,'^(\s*\(\{-}\)\s*)$','\1','')
+  endwhile
+  return l:expression
 
 endfunction
 
@@ -671,7 +703,8 @@ function! VimclairVim()
     let l:vimCommands += 1
     let l:vimCommandLine = line('.')
     let l:vimCommand=matchstr(getline(l:vimCommandLine),'\S\+.*',4)
-    " XXX TODO make 'silent' configurable:
+    " XXX TODO make 'silent' configurable
+    " XXX with 'silent', wrong regexp in substitutions are hard to notice!
     execute 'silent! '.l:vimCommand
     call cursor(l:vimCommandLine,1) " Return to the command line.
     call setline('.','') " Blank the line.
