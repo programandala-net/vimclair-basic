@@ -1,7 +1,7 @@
 " vimclair_basic.vim
 
 " Vimclair BASIC
-" Version A-05-201410222338
+" Version A-05-2014102300
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -129,7 +129,7 @@ function! VimclairDoLoop()
       endif
     endwhile
     if l:unclosedLoops
-      echo 'Error: DO without LOOP at line '.s:doLineNumber
+      echoerr 'DO without LOOP at line '.s:doLineNumber
     endif
     call cursor(s:doLineNumber,'$')
   endwhile
@@ -552,76 +552,77 @@ function! VimclairConditionalConversion()
   "
   "   #if[n]def tag
   "     ...
-  "   #elseif[n]def tag
-  "     ...
   "   #else
   "     ...
   "   #endif
 
-  " Note: There can be any number of #else, and the can be anywhere in the
-  " structure, not just at the end. #else just toggles the conversion status.
+  " Note: The conditions can not be nested.
 
   call cursor(1,1)
 
-  if search('^\s*#if\(n\)\?def\s\+.\+$','Wc')
+  let l:unresolvedCondition=0 " flag
 
-    echo 'XXX #if[n]def found'
-    let l:ifLineNumber=line('.')
-    let l:tagPos=matchend(getline('.'),'^\s*#if\(n\)\?def\s\+')
-    let l:tag=Trim(strpart(getline('.'),l:tagPos))
-    echo 'XXX l:tag='.l:tag
-    let l:tagMustBeDefined=match(getline('.'),'^\s*#ifdef')
-    echo 'XXX l:tagMustBeDefined='.l:tagMustBeDefined
-    let l:tagIsDefined=VimclairDefined(l:tag)
-    echo 'XXX l:tagIsDefined='.l:tagIsDefined
-    let l:keepSource=l:tagMustBeDefined && l:tagIsDefined
-    echo 'XXX l:keepSource='.l:keepSource
-    call setline('.','')
-    let l:unresolvedConditions=1
+  while search('^\s*#if\(n\)\?def\s\+.\+$','Wc')
+  
+    let l:else=0 " flag
+
+"    echo 'XXX first #if[n]def found'
 
     while line('.')<line('$') " not at the end of the file?
 
       let l:currentLine=getline('.')
-      " echo 'XXX line: '.l:currentLine
 
       if l:currentLine=~'^\s*#ifdef\s\+.\+'
         " #IFDEF
-        let l:unresolvedConditions=l:unresolvedConditions+1
-        " XXX TODO
-        call setline('.','')
+"        echo 'XXX #ifdef found'
+        if l:unresolvedCondition
+          echoerr '#ifdef structures can not be nested'
+          break
+        else
+          call VimclairIfdef()
+          let l:unresolvedCondition=1
+        endif
       elseif l:currentLine=~'^\s*#ifndef\s\+.\+'
         " #IFNDEF
-        let l:unresolvedConditions=l:unresolvedConditions+1
-        " XXX TODO
-        call setline('.','')
+"        echo 'XXX #ifndef found ----------------------'
+        if l:unresolvedCondition
+          echoerr '#ifndef structures can not be nested'
+          break
+        else
+          call VimclairIfdef()
+          let l:unresolvedCondition=1
+        endif
 "      elseif l:currentLine=~'^\s*#elseifdef\s\+.\+'
 "        " #ELSEIFDEF
 "        call setline('.','')
-"        if !l:unresolvedConditions
+"        if !l:unresolvedCondition
 "          " XXX TODO
 "        endif
 "      elseif l:currentLine=~'^\s*#elseifndef\s\+.\+'
 "        " #ELSEIFNDEF
 "        call setline('.','')
-"        if !l:unresolvedConditions
+"        if !l:unresolvedCondition
 "          " XXX TODO
 "        endif
       elseif l:currentLine=~'^\s*#else\s*$'
         " #ELSE
-        call setline('.','')
-        if !l:unresolvedConditions
-          let l:keepSource=!l:keepSource
+"        echo 'XXX #else found'
+        if l:else
+          echoerr 'More than one #else in the same #if[n]def structure'
+          break
+        else
+          let l:else=1
+          call setline('.','')
+          let s:keepSource=!s:keepSource
         endif
       elseif l:currentLine=~'^\s*#endif\s*$'
         " #ENDIF
-        echo 'XXX #endif found'
+"        echo 'XXX #endif found'
         call setline('.','')
-        let l:unresolvedConditions=l:unresolvedConditions-1
-        if !l:unresolvedConditions
-          break
-        endif
+        let l:unresolvedCondition=0
+        break
       else
-        if l:unresolvedConditions && !l:keepSource
+        if l:unresolvedCondition && !s:keepSource
             call setline('.','')
         endif
       endif
@@ -630,13 +631,29 @@ function! VimclairConditionalConversion()
 
     endwhile
 
-    if l:unresolvedConditions
+    if l:unresolvedCondition
       echo 'Error: #IF[N]DEF without #ENDIF at line '.l:ifLineNumber
     endif
 
-  endif
+  endwhile
 
   call VimclairSaveStep('conditional_conversion')
+
+endfunction
+
+function! VimclairIfdef()
+
+    let l:ifLineNumber=line('.')
+    let l:tagPos=matchend(getline('.'),'^\s*#if\(n\)\?def\s\+')
+    let l:tag=Trim(strpart(getline('.'),l:tagPos))
+"    echo 'XXX l:tag='.l:tag
+    let l:tagMustBeDefined=(getline('.')=~'^\s*#ifdef')
+"    echo 'XXX l:tagMustBeDefined='.l:tagMustBeDefined
+    let l:tagIsDefined=VimclairDefined(l:tag)
+"    echo 'XXX l:tagIsDefined='.l:tagIsDefined
+    let s:keepSource=(l:tagMustBeDefined && l:tagIsDefined) || (!l:tagMustBeDefined && !l:tagIsDefined)
+"    echo 'XXX s:keepSource='.s:keepSource
+    call setline('.','')
 
 endfunction
 
@@ -739,14 +756,21 @@ function! VimclairDefine()
 
   call cursor(1,1) " Go to the top of the file.
   while search('^\s*#define\>','Wc')
-    let l:tag=matchend(getline('.'),'^\s*#define\s*')
+    let l:definition=getline('.')
+    let l:tagPos=matchend(l:definition,'^\s*#define\s*')
+    let l:tag=strpart(l:definition,l:tagPos)
     if !empty(l:tag)
       call add(s:definedTags,l:tag)
     endif
     call setline('.','')
   endwhile
 
-  echo len(s:definedTags).' #define directives.'
+  let l:tags=len(s:definedTags)
+  if l:tags==1
+    echo l:tags.' #define directive.'
+  elseif l:tags>1 
+    echo l:tags.' #define directives.'
+  endif
 
 endfunction
 
@@ -754,9 +778,10 @@ function! VimclairDefined(needle)
 
   " Is needle a defined tag?
 
-"  echo " XXX About to search for the <".a:needle."> tag!"
+"  echo "XXX About to search for the <".a:needle."> tag!"
   let l:found=0 " XXX needed, but why? Otherwise, error: undefined variable
   for l:tag in s:definedTags
+"      echo 'XXX tag: '.l:tag
       let l:found=(l:tag==a:needle)
       if l:found
           break
@@ -1103,8 +1128,6 @@ function! VimclairBASIC()
   call VimclairVim()
   call VimclairControlStructures()
 
-  if 1 " XXX TMP for debugging
- 
   call VimclairLabels()
   call VimclairRenum()
   call VimclairChars()
@@ -1118,8 +1141,6 @@ function! VimclairBASIC()
 
   call VimclairTapFile()
   
-  endif " XXX TMP for debugging
-
   let &ignorecase=s:ignoreCaseBackup
   let &shortmess=s:shortmessBackup
 
