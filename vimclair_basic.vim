@@ -1,7 +1,7 @@
 " vimclair_basic.vim
 
 " Vimclair BASIC
-" Version A-04-20141021
+" Version A-05-201410222338
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -155,7 +155,7 @@ function! VimclairDo()
   " is enough.  If it's DO UNTIL or DO WHILE, a conditional jump has to be
   " inserted, but the destination line is unknown until the correspondent LOOP
   " is found.  Therefore the code in stored into s:doStatement in order to
-  " create it later (VimclairLoop() does it), with the added line number.
+  " create it later (VimclairLoop() does it), with the line number added.
 
   " Save the original line: 
   let l:doLine=getline('.')
@@ -205,7 +205,7 @@ function! VimclairLoop()
 
   " Finish the DO if necessary:
   if s:doStatement!=''
-    " Complete and create the jump to it:
+    " Complete and create the jump to the DO:
     call append(s:doLineNumber,s:doStatement.l:loopExitLabel)
     let s:doStatement=''
   endif
@@ -235,13 +235,12 @@ function! VimclairExitDo()
       echo 'Error: EXIT DO without LOOP at line '.exitDoLineNumber
     endif
   endwhile
+
 endfunction
 
 function! VimclairExitFor()
 
   " Convert EXIT FOR.
-
-  " Syntax:
 
   " EXIT FOR and its correspondent NEXT must be at the end of the line.
 
@@ -265,141 +264,6 @@ function! VimclairExitFor()
   call VimclairSaveStep('exit_for')
 
 endfunction
-
-"function! VimclairElse()
-"
-"  " Convert ELSE...ENDIF.
-"
-"  " XXX OLD -- Abandoned. This method can not work with nested conditionals.
-"
-"  " Syntax:
-"
-"  " ELSE must be at the start of a line. It can be followed by any other
-"  " command, with or without a separating semicolon.
-"
-"  " ENDIF must be alone at its own line.
-"  " It can be written 'END IF' as well.
-"
-"  call cursor(1,1)
-"  while search('^else\>','Wc')
-"    "echo '  XXX ELSE found at line '.line('.').': '.getline('.')
-"    let l:elseLineNumber=line('.')
-"    let l:elseLine=getline('.')
-"    let l:elsePartPos=matchend(l:elseLine,'else\(\(\s\|:\)\+\)\?')
-"    let l:elsePart=strpart(l:elseLine,l:elsePartPos)
-"    echo "l:elsePart: ".l:elsePart
-"    call setline('.',l:elsePart) " remove the ELSE
-"    if len(l:elsePart)==0
-"      silent substitute,\n,,
-"    endif
-"    if search('\<if .\+ then\>','Wb')
-"      "echo '  XXX IF found at line '.line('.').': '.getline('.')
-"      let l:exitLabel='@endif'.line('.')
-"      call setline('.',getline('.').':goto '.l:exitLabel)
-"      call cursor(l:elseLineNumber,'^')
-"      if search('^end\s*if$','W')
-"        call setline('.',l:exitLabel)
-"      else
-"        echo 'Error: ELSE without ENDIF at line '.elseLineNumber
-"      endif
-"    else
-"      echo 'Error: ELSE without IF at line '.elseLineNumber
-"    endif
-"    call cursor(l:elseLineNumber,'^')
-"
-"  endwhile
-"endfunction
-"
-"function! EXVimclairIfEndif()
-"
-"  " Convert all IF...ENDIF structures.
-"
-"  " XXX OLD Second version, without ELSE IF or nesting.
-"
-"  " The Vimclair BASIC IF...ENDIF structures are inspired by Andy Wright's Beta
-"  " BASIC, SAM BASIC and MasterBASIC, but they are not identical.
-"
-"  " Syntax:
-"  "
-"  " Short IF structures are the same than Sinclair BASIC's.
-"  "
-"  "   IF condition THEN action
-"  "
-"  " Of course they can be splitted into any number of text lines:
-"  " 
-"  "   IF condition THEN \
-"  "     action
-"  "
-"  " As usual, the splitting format does not affect the parsing,
-"  " as long as the required spaces are preserved at the splitting points:
-"  "
-"  "   IF \
-"  "     condition \
-"  "   THEN \
-"  "     action
-"  "
-"  " Long IF structures must have 'THEN' at the end of the actual source line,
-"  " and the ELSE must be on its own line:
-"  "
-"  "   IF condition1 THEN
-"  "     code1
-"  "   ELSE 
-"  "     code2
-"  "   ENDIF
-"
-"  let s:ifStatement=''
-"
-"  "echo '  XXX About to search for a long IF!'
-"  call cursor(1,1)
-"  while search('^if .\+ then$','Wc')
-"    " Main long IF found
-"    "echo '  XXX IF found!'
-"    let l:ifLineNumber=line('.') " line number of the IF 
-"    let l:condition=substitute(getline('.'), '^if\s*\(.\{-}\)\s*then$', '\1', '')
-"    let l:unclosedConditionals=1 " counter
-"    let l:elseLineNumber=0 " used also as a flag
-"    while search('^\(if\s\+.\+\s\+then\|else\|end\s*if\)$','W')
-"      " Nested long IF, ELSE or ENDIF found
-"      "echo '  XXX IF, ELSE or ENDIF found'
-"      "echo '  XXX line: '.getline('.')
-"      if strpart(getline('.'),0,2)=='if'
-"        " Nested long IF
-"        let l:unclosedConditionals=l:unclosedConditionals+1
-"      elseif strpart(getline('.'),0,4)=='else'
-"        " ELSE
-"        if l:unclosedConditionals==1 " current?
-"          let l:elseLineNumber=line('.')
-"          let l:elseLabel='@else'.l:ifLineNumber
-"          call setline('.',l:elseLabel)
-"        endif
-"      else
-"        " ENDIF
-"        let l:unclosedConditionals=l:unclosedConditionals-1
-"        if l:unclosedConditionals==0 " current?
-"          let l:endifLabel='@endif'.l:ifLineNumber
-"          call setline('.',l:endifLabel)
-"          if l:elseLineNumber " there was an ELSE?
-"            call append(l:elseLineNumber-1,'goto '.l:endifLabel)
-"            " The IF must jump to ELSE
-"            let l:newIf='if '.VimclairNot(l:condition).' then goto '.l:elseLabel
-"          else
-"            " The IF must jump to ENDIF
-"            let l:newIf='if '.VimclairNot(l:condition).' then goto '.l:endifLabel
-"          endif
-"          call setline(l:ifLineNumber,l:newIf)
-"          break
-"        endif
-"      endif
-"    endwhile
-"    if l:unclosedConditionals
-"      echo 'Error: IF without ENDIF at line '.ifLineNumber
-"    endif
-"    call cursor(l:ifLineNumber,'$')
-"  endwhile
-"
-"  call VimclairExitDo()
-"
-"endfunction
 
 function! VimclairIfEndif()
 
@@ -441,8 +305,6 @@ function! VimclairIfEndif()
   "   ENDIF
 
   " XXX TODO Change the syntax: force THEN after the secondary conditions?
-
-  let s:ifStatement=''
 
   "echo '  XXX About to search for a long IF!'
   call cursor(1,1)
@@ -517,7 +379,7 @@ function! VimclairIfEndif()
     endwhile
 
     if l:unclosedConditionals
-      echo 'Error: IF without ENDIF at line '.ifLineNumber
+      echo 'Error: IF without ENDIF at line '.l:ifLineNumber
     endif
 
     call cursor(l:ifLineNumber,'$')
@@ -536,7 +398,7 @@ function! VimclairNot(expression)
   let l:expression=a:expression
   let l:expression=substitute(l:expression,'^\s*\(.\{-}\)\s*$','\1','')
   " XXX Somehow, '\>' does not work in the following pattern, so
-  " '[ (]' is used insead:
+  " '[ (]' is used instead:
   if match(l:expression,"^not[ (]")==0
     let l:expression=substitute(l:expression,'^not\s*\(.\{-}\)$','\1','')
     let l:expression=VimclairWithoutParens(l:expression)
@@ -560,21 +422,7 @@ function! VimclairWithoutParens(expression)
 
 endfunction
 
-" XXX OLD
-"function! VimclairIfCondition(ifLine)
-"  " Return the condition of a long-IF line
-"  " (whose format is 'if condition then').
-"  let l:condition=strpart(a:ifLine,2)
-"  let l:condition=strpart(l:condition,0,len(l:condition)-4)
-"  let l:condition=strpart(l:condition,match(l:condition,'\S'))
-"  let l:tail=match(l:condition,'then$')
-"  let l:condition=strpart(l:condition,0,len(l:condition)-l:tail)
-"  return Trim(l:condition)
-"endfunction
-
 function! VimclairProcedures()
-
-  " XXX First version, without parameters.
 
   " Convert DEF PROC, END PROC and EXIT PROC.
 
@@ -623,76 +471,6 @@ function! VimclairProcedures()
 
   call VimclairSaveStep('procedures')
   
-endfunction
-
-function! XXXVimclairProcedures()
-
-  " XXX second version, with parameters, unfinished:
-  " XXX it's too complex to simulate a generic parameter conversion.
-
-  " Convert DEF PROC, END PROC and EXIT PROC.
-
-  " Syntax:
-
-  " DEF PROC and END PROC must be the only statements of the line.
-  " The space is optional: DEFPROC and ENDPROC are valid.
-  " EXIT PROC must be at the end of the line.
-  " PROC must be used to call a procedure.
-
-  " Description:
-
-  " Procedures are simulated with routines.
-  " Parameters are simulated with LET before calling the subroutines.
-
-  let s:doStatement=''
-  let l:procParametersList=[]
-  let s:maxProcParameters=2
-  "let l:procParametersPattern='\(\a[a-zA-Z0-9_]*\$\?,\?\)\{-'+s:maxProcParameters+'}'
-  let l:procParametersPattern='\(\a[a-zA-Z0-9_]*\$\?\)'
-  let l:i=1
-  while l:i<s:maxProcParameters
-    let l:procParametersPattern=l:procParametersPattern.',\(\a[a-zA-Z0-9_]*\$\?\)'
-    let l:i=l:i+1
-  endwhile
-  echo 'l:procParametersPattern: '.l:procParametersPattern
-
-  call cursor(1,1)
-  while search('^def\s*proc\>','Wc')
-    "echo '  XXX DEF PROC found at line '.line('.').': '.getline('.')
-    let l:procLineNumber=line('.')
-    let l:procLine=getline('.')
-    let l:procNamePos=matchend(l:procLine,'^def\s*proc\s\+')
-    let l:procName=strpart(l:procLine,l:procNamePos)
-    let l:procEndNamePos=matchend(l:procName,'^\S\+')
-    let l:procName=strpart(l:procName,0,l:procEndNamePos)
-    echo 'l:procName: '.l:procName
-    let l:procParametersPos=matchend(l:procLine,'^def\s*proc\s\+\S\+\s\+')
-    echo 'l:procParametersPos: '.l:procParametersPos
-    if l:procParametersPos>-1
-      let l:procParameters=strpart(l:procLine,l:procParametersPos)
-      echo 'l:procParameters: '.l:procParameters
-    endif
-    if len(l:procName)==0
-      echo 'Error: DEF PROC bad syntax at line '.l:procLineNumber
-    else
-      echo 'valid proc name: '.l:procName
-      let l:procLabel='@proc'.l:procLineNumber
-      echo 'proc label: '.l:procLabel
-      call setline(l:procLineNumber,l:procLabel)
-      if l:procParametersPos>-1
-        let l:procParametersList=matchlist(l:procParameters,l:procParametersPattern)
-        echo 'l:procParametersList:'
-        echo l:procParametersList
-      endif
-      call cursor(l:procLineNumber,'^')
-      " XXX TODO make PROC optional in the calls:
-      execute '%substitute,\<proc '.l:procName.'\>,gosub '.l:procLabel.',gei'
-    endif
-  endwhile
-
-  silent %substitute,\<exit\s*proc$$,return,ei
-  silent %substitute,^end\s*proc$,return,ei
-
 endfunction
 
 " ----------------------------------------------
@@ -772,93 +550,91 @@ function! VimclairConditionalConversion()
 
   " Syntax:
   "
-  "   #if[un]def[ined] tag [#then]
+  "   #if[n]def tag
   "     ...
-  "   #else #if[un]def[ined] tag [#then]
+  "   #elseif[n]def tag
   "     ...
   "   #else
   "     ...
   "   #endif
 
-  let s:ifStatement=''
+  " Note: There can be any number of #else, and the can be anywhere in the
+  " structure, not just at the end. #else just toggles the conversion status.
 
-  echo '  XXX About to search for an #IFDEFINED'
   call cursor(1,1)
-  while search('^#if\(un\)\?def\(ined\)\?\s\+.\+\(#then\)\?$','Wc')
 
-    " Main #IFDEFINED found
-    "echo '  XXX #IFDEFINED found!'
+  if search('^\s*#if\(n\)\?def\s\+.\+$','Wc')
+
+    echo 'XXX #if[n]def found'
     let l:ifLineNumber=line('.')
-    let l:conditionLineNumber=line('.')
-    let l:condition=substitute(getline('.'), '^#if\(un\)def\(ined\)\?\s\+\(.\{-}\)\(\s\+#then\)\?$', '\1', '')
-    let l:unclosedConditionals=1 " counter
-    let l:elseLineNumber=0 " used also as a flag
+    let l:tagPos=matchend(getline('.'),'^\s*#if\(n\)\?def\s\+')
+    let l:tag=Trim(strpart(getline('.'),l:tagPos))
+    echo 'XXX l:tag='.l:tag
+    let l:tagMustBeDefined=match(getline('.'),'^\s*#ifdef')
+    echo 'XXX l:tagMustBeDefined='.l:tagMustBeDefined
+    let l:tagIsDefined=VimclairDefined(l:tag)
+    echo 'XXX l:tagIsDefined='.l:tagIsDefined
+    let l:keepSource=l:tagMustBeDefined && l:tagIsDefined
+    echo 'XXX l:keepSource='.l:keepSource
+    call setline('.','')
+    let l:unresolvedConditions=1
 
-    while search('^\(\(#else\s\+\)\?#if\(un\)\?def\(ined\)\?\s\+.\+\s\+#then\|#else\|#endif\)$','W')
-      " Nested IF, ELSE IF, ELSE or ENDIF found
-      "echo '  XXX IF, ELSE or ENDIF found'
-      "echo '  XXX line: '.getline('.')
-      if strpart(getline('.'),0,2)=='#if'
-        " Nested long #IF
-        let l:unclosedConditionals=l:unclosedConditionals+1
-      elseif strpart(getline('.'),0,7)=='#else #if'
-        " #ELSE #IF
-        if l:unclosedConditionals==1 " current #IF structure?
-          if l:elseLineNumber " there was a previous #ELSE?
-            echo 'Error: #ELSE #IF after #ELSE at line '.line('.')
-            break
-          else
-            call append(line('.')-1,'goto '.l:endifLabel)
-            " Make the previous condition jump here when false:
-            let l:elseIfLabel='@elseIf'.l:ifLineNumber.'_'.line('.')
-            let l:newIf='if '.VimclairNot(l:condition).' then goto '.l:elseIfLabel
-            call setline(l:conditionLineNumber,l:newIf)
-            call append(line('.')-1,l:elseIfLabel)
-            " Keep the current condition:
-            let l:conditionLineNumber=line('.')
-            let l:condition=substitute(getline('.'), '^#else\s\+#if\s*\(.\{-}\)\(\s\+#then\)\?$', '\1', '')
-            " 
-          endif
-        endif
-      elseif strpart(getline('.'),0,4)=='#else'
+    while line('.')<line('$') " not at the end of the file?
+
+      let l:currentLine=getline('.')
+      " echo 'XXX line: '.l:currentLine
+
+      if l:currentLine=~'^\s*#ifdef\s\+.\+'
+        " #IFDEF
+        let l:unresolvedConditions=l:unresolvedConditions+1
+        " XXX TODO
+        call setline('.','')
+      elseif l:currentLine=~'^\s*#ifndef\s\+.\+'
+        " #IFNDEF
+        let l:unresolvedConditions=l:unresolvedConditions+1
+        " XXX TODO
+        call setline('.','')
+"      elseif l:currentLine=~'^\s*#elseifdef\s\+.\+'
+"        " #ELSEIFDEF
+"        call setline('.','')
+"        if !l:unresolvedConditions
+"          " XXX TODO
+"        endif
+"      elseif l:currentLine=~'^\s*#elseifndef\s\+.\+'
+"        " #ELSEIFNDEF
+"        call setline('.','')
+"        if !l:unresolvedConditions
+"          " XXX TODO
+"        endif
+      elseif l:currentLine=~'^\s*#else\s*$'
         " #ELSE
-        if l:unclosedConditionals==1 " current IF structure?
-          if l:elseLineNumber " there was a previous ELSE?
-            echo 'Error: Second #ELSE at line '.line('.')
-            break
-          else
-            call append(line('.')-1,'goto '.l:endifLabel)
-            let l:elseLineNumber=line('.')
-            " Make the previous condition jump here when false:
-            let l:elseLabel='@else'.l:ifLineNumber
-            let l:newIf='if '.VimclairNot(l:condition).' then goto '.l:elseLabel
-            call setline(l:conditionLineNumber,l:newIf)
-            call setline('.',l:elseLabel)
-            " Keep the current condition:
-            let l:conditionLineNumber=line('.') " XXX needed?
-            let l:condition=''
-          endif
+        call setline('.','')
+        if !l:unresolvedConditions
+          let l:keepSource=!l:keepSource
         endif
-      else
-        " ENDIF
-        let l:unclosedConditionals=l:unclosedConditionals-1
-        if l:unclosedConditionals==0 " current IF structure?
-          call setline('.',l:endifLabel)
-          if len(l:condition) " is there an unresolved condition?
-            let l:newIf='if '.VimclairNot(l:condition).' then goto '.l:endifLabel
-            call setline(l:conditionLineNumber,l:newIf)
-          endif
+      elseif l:currentLine=~'^\s*#endif\s*$'
+        " #ENDIF
+        echo 'XXX #endif found'
+        call setline('.','')
+        let l:unresolvedConditions=l:unresolvedConditions-1
+        if !l:unresolvedConditions
           break
         endif
+      else
+        if l:unresolvedConditions && !l:keepSource
+            call setline('.','')
+        endif
       endif
+
+      call cursor(line('.')+1,1) " go to the next line
+
     endwhile
 
-    if l:unclosedConditionals
-      echo 'Error: #IF without #ENDIF at line '.ifLineNumber
+    if l:unresolvedConditions
+      echo 'Error: #IF[N]DEF without #ENDIF at line '.l:ifLineNumber
     endif
 
-    call cursor(l:ifLineNumber,'$')
-  endwhile
+  endif
 
   call VimclairSaveStep('conditional_conversion')
 
@@ -874,10 +650,10 @@ function! VimclairConfig()
 
   " #renumLine <line number>
   call VimclairRenumLine()
-  " #procedureCall <command name>
+  " #procedureCall <keyword>
   call VimclairProcedureCall()
-  " #runLine <line number>
-  call VimclairRunLine()
+  " #runLabel <label>
+  call VimclairRunLabel()
   " #define <tag>
   call VimclairDefine()
   " #filename <filename>
@@ -932,23 +708,22 @@ function! VimclairProcedureCall()
 
 endfunction
 
-function! VimclairRunLine()
+function! VimclairRunLabel()
 
-  " Config the auto-run line number.  Its default value is zero, what means no
-  " auto-run.
+  " Config the auto-run line number.
 
-  " The command #runLine can be used to set the desired line number. Only the
-  " first occurence of #runLine will be used; it can be anywhere in the source
-  " but always at the start of a line (with optional indentation).
+  " The command #runLabel can be used to set the desired label. Only the first
+  " occurence of #runLabel will be used; it can be anywhere in the source but
+  " always at the start of a line (with optional indentation).
 
-  let s:runLine=0 " default value (no auto-run)
+  let runLabel='' " default value (no auto-run)
   call cursor(1,1) " Go to the top of the file.
-  if search('^\s*#runLine\>','Wc')
-    let l:valuePos=matchend(getline('.'),'^\s*#runLine\s*')
-    let s:runLine=strpart(getline('.'),l:valuePos)
+  if search('^\s*#runLabel\>','Wc')
+    let l:valuePos=matchend(getline('.'),'^\s*#runLabel\s*')
+    let s:runLabel=strpart(getline('.'),l:valuePos)
   endif
 
-  echo s:runLine==0 ? 'No auto-run' : 'Auto-run line: '.s:runLine
+  echo empty(s:runLabel) ? 'No auto-run' : 'Auto-run label: '.s:runLabel
 
 endfunction
 
@@ -960,18 +735,34 @@ function! VimclairDefine()
   " their own source lines (with optional indentation).
 
   " Create an empty list to store the defined tag.
-  let s:defined=[]
+  let s:definedTags=[]
 
   call cursor(1,1) " Go to the top of the file.
   while search('^\s*#define\>','Wc')
     let l:tag=matchend(getline('.'),'^\s*#define\s*')
     if !empty(l:tag)
-      call add(s:defined,l:tag)
+      call add(s:definedTags,l:tag)
     endif
     call setline('.','')
   endwhile
 
-  echo len(s:defined).' #define directives.'
+  echo len(s:definedTags).' #define directives.'
+
+endfunction
+
+function! VimclairDefined(needle)
+
+  " Is needle a defined tag?
+
+"  echo " XXX About to search for the <".a:needle."> tag!"
+  let l:found=0 " XXX needed, but why? Otherwise, error: undefined variable
+  for l:tag in s:definedTags
+      let l:found=(l:tag==a:needle)
+      if l:found
+          break
+      endif
+  endfor
+  return l:found
 
 endfunction
 
@@ -984,7 +775,7 @@ function! VimclairZXFilename()
   " extension.
 
   " The command #filename can be used to set the desired filename. Only the
-  " first occurence of #filenamewill be used; it can be anywhere in the source
+  " first occurence of #filename will be used; it can be anywhere in the source
   " but always at the start of a line (with optional indentation).
 
   let s:zxFilename=expand('%:r') " default: source filename without extension
@@ -1033,6 +824,7 @@ function! VimclairLabels()
 
   " Search for label definitions and store them into the dictionary:
   while search('^@[0-9a-zA-Z_]\+\>','W')
+
     " Store the found label into register 'l':
     normal "l2yw
     " XXX debug check
@@ -1066,8 +858,10 @@ function! VimclairLabels()
       execute 'substitute/'.l:label.'\>/'.l:lineNumber[l:label].'/i'
     endwhile
   endfor
-
-  call VimclairSaveStep('labels_substituted')
+ 
+  if !empty(s:runLabel) 
+    let s:runLine=l:lineNumber[s:runLabel]
+  endif
 
   let &ignorecase=l:ignoreCaseBackup
 
@@ -1302,7 +1096,9 @@ function! VimclairBASIC()
   echo "Converting Vimclair BASIC to Sinclair BASIC..." 
   call VimclairBasfile()
   call VimclairConfig()
+  call VimclairConditionalConversion() " first, before including other files
   call VimclairInclude()
+  call VimclairConditionalConversion() " second, for the included files
   call VimclairClean()
   call VimclairVim()
   call VimclairControlStructures()
