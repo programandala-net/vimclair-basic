@@ -1,7 +1,7 @@
 " vimclair_basic.vim
 
 " Vimclair BASIC
-" Version A-05-2014102300
+" Version A-05-2014102319
 
 " Copyright (C) 2014 Marcos Cruz (programandala.net)
 
@@ -637,6 +637,7 @@ function! VimclairConditionalConversion()
 
   endwhile
 
+  echo 'Conditional conversion done'
   call VimclairSaveStep('conditional_conversion')
 
 endfunction
