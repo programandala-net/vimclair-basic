@@ -1,6 +1,10 @@
-= History CE4 in Vimclair BASIC
+= History of Vimclair BASIC
 :author: Marcos Cruz (programandala.net)
-:revdate: 2014-08-05
+:revdate: 2014-10-23
+
+// 2014-12-10: This document <vimclair_basic.history.adoc> is
+// converted to Fendo format, backuped and deprecated. Now it's
+// <~/forth/fendo-programandala/pages.source/en.program.vimclair_basic.history.fs>.
 
 == 2014-07-26
 
@@ -64,4 +68,143 @@
 - Fix: --body-numbering=a was needed by the  nl tool. Otherwise empty
   lines that holded a lonely label were not numbered, and the label
   values didn't match anymore.
+- Fix: 
+
+This code:
+
+----
+    do
+      let i$=inkey$
+    loop until i$<>""
+    do
+    loop until inkey$=""
+----
+
+Was converted to:
+
+----
+27 print 'prompt$;cursor$;
+<<<<<<<<<<< empty
+28 let i$=inkey$
+29 if not (i$<>"") then go to 29 <<<<<<<<<!
+<<<<<<<<< empty
+30 if not (inkey$="") then go to 32 <<<<<<<<<<!
+----
+
+The reason was the order of some operations. It's fixed but the code
+still needs some revision.
+
+== 2014-08-06
+
+- Improvement: ".vbas" is removed from the BAS filename; and
+  ".vbas.bas" is removed from the TAP filename.
+- Fix: The jump before an #!else!# was not created because of a wrong
+  expression in the 'append()'.
+- Fix: The last empty line of the BAS file is removed, so BAS2TAP does
+  not shows a warning anymore.
+
+== 2014-08-09
+
+- Change: '#renumLine' instead of '#firstLine'.
+- New: '#runLine', '#filename'.
+
+== 2014-08-10
+
+- Change: Now the code is cleaned before executing the Vim commands.
+  Otherwise certain substitutions don't work, for example because the
+  splitted lines have not been joined yet.
+- Improvement: Simpler code in functions that retrieve the config
+  values from the source.
+
+== 2014-08-11
+
+- Improvement: A starting 'not' function is removed from expressions
+  that have to be negated. Formerly, a 'not' was added in all
+  cases. Also useless surrounding parens are removed parens are removed..
+
+== 2014-08-12
+
+- Fix: Sometimes the file included with '#included' got merged into a
+  different place. The code was:
+
+----
+  call cursor(1,1) " Go to the top of the file.
+  let l:includedFiles=0 " Counter
+  while search('^\s*#include\s','Wc')
+    let l:includedFiles += 1
+    let l:filename=matchstr(getline('.'),'\S\+.*',8)
+    call setline('.','') " Blank the line.
+    execute "silent! r ".getcwd().'/'.l:filename
+  endwhile
+----
+
+After many tries, this new method proved to work as expected:
+
+----
+  call cursor(1,1) " Go to the top of the file.
+  let l:includedFiles=0 " Counter
+  while search('^\s*#include\s\+','Wc')
+    let l:includedFiles += 1
+    let l:filename=matchstr(getline('.'),'\S\+.*',8)
+    call setline('.','// <<< start of included file '.l:filename) 
+    call append('.','// >>> end of included file '.l:filename) 
+    let l:filecontent=readfile(getcwd().'/'.l:filename)
+    call append('.',l:filecontent)
+  endwhile
+----
+
+Version A-04.
+
+== 2014-10-15
+
+Description improved.
+
+== 2014-10-20
+
+'#define' implemented, just to define tags without value, in order to
+use them as switches for conditional conversion.
+
+Start of the conditional conversion ('#if[un]def[ined]', '#else',
+'#endif').  Not finished yet.
+
+== 2014-10-22
+
+Fix: the "IF without ENDIF" error didn't show the line number.
+
+New: 'VimclairDefined()', needed by 'VimclairConditionalConversion()'.
+
+Improvement: '#runLabel' instead of '#runLine'.
+
+Version A-05.
+
+== 2014-10-23
+
+Conditional conversion caused strange problems, but the reason was
+'#ifdef' or '#ifnded' being used in splitted lines. Example:
+
+----
+    if not anExit and complement=theOutside then \
+      // No explicit way out, so use the previous location instead
+      let anExit=previousLocation:\
+      #ifdef debug
+        debug["Using previous location instead: "+str$ previousLocation]
+      #endif
+----
+
+The problem is the 'let' line is splitted, because also the 'debug[]'
+command belongs to the same 'if' structure. But when the 'debug' tag
+is not defined, the 'debug[]' line is removed and the 'let' line is
+joined to whatever line comes next, out of the 'if' structure!
+
+So the problem is not Vimclair BASIC. In this particular case, the
+solution is to change the order of the text lines in the code:
+
+----
+    if not anExit and complement=theOutside then \
+      // No explicit way out, so use the previous location instead
+      #ifdef debug
+        debug["Using previous location instead: "+str$ previousLocation]:\
+      #endif
+      let anExit=previousLocation
+----
 
