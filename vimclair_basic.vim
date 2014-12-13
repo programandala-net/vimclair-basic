@@ -1,17 +1,28 @@
 " vimclair_basic.vim
 
 " Vimclair BASIC
-" Version A-05-2014102319
-
-" Copyright (C) 2014 Marcos Cruz (programandala.net)
-
-" License: XXX TODO
+" Version A-05-20141213
 
 " This file is part of Vimclair BASIC
 " http://programandala.net/en.program.vimclair_basic.html
 
+" Copyright (C) 2014 Marcos Cruz (programandala.net)
+
+" Vimclair BASIC is free software; you can redistribute it and/or modify it
+" under the terms of the GNU General Public License as published by the Free
+" Software Foundation; either version 2 of the License, or (at your option)
+" any later version.
+"
+" Vimclair BASIC is distributed in the hope that it will be useful, but
+" WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+" or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+" more details.
+"
+" You should have received a copy of the GNU General Public License along with
+" this program; if not, see <http://gnu.org/licenses>.
+
 " ----------------------------------------------
-"  Description
+" Description
 
 " This program, written in Vim Script, converts a Vimclair BASIC source code
 " into an actual Sinclair BASIC program in a TAP file.
@@ -19,7 +30,7 @@
 " Vimclair BASIC offers the following advantages over Sinclair BASIC:
 "
 " - C-style block and line comments.
-" - Bash-style line comments (only at the start of the line).
+" - Bash-style line comments.
 " - Labels instead of line numbers.
 " - #vim directive to execute any Vim command in the source.
 " - Long variable names for strings, arrays and FOR loops (using the #vim
@@ -49,6 +60,29 @@
 "     #procedureCall
 
 " ----------------------------------------------
+" Requirements
+
+" Vimclair BASIC needs BAS2TAP (by Martijn van der Heide of ThunderWare
+" Research Center) to be installed in your system.  It has been tested with
+" BAS2TAP v2.4 (release 2005-07-24), the latest version at the time of
+" writing.
+
+" You can always freely obtain the latest version of BAS2TAP from the
+" utilities section of The World of Spectrum, at:
+
+"    http://www.worldofspectrum.org/
+
+" Or you can try:
+
+"    ftp://ftp.worldofspectrum.org/pub/sinclair/tools/pc
+
+" This is how I compiled and installed BAS2TAP on Debian:
+
+"    gcc -Wall -O2 bas2tap.c -o bas2tap -lm
+"    strip bas2tap
+"    sudo mv bas2tap /usr/local/bin/
+
+" ----------------------------------------------
 " To-do and change log
 
 " See the files:
@@ -61,13 +95,15 @@ function! VimclairClean()
 
   " Clean the source code.
 
-  " Save the #vim commands
-  let l:mark='vimcommand'.localtime()
-  execute 'silent! %s/^\s*#vim\>/'.l:mark.'/ei'
+  " Save the #vim commands XXX OLD
+"  let l:mark='vimcommand'.localtime()
+"  execute 'silent! %s/^\s*#vim\>/'.l:mark.'/ei'
+
   " Remove the metacomments
-  silent! %s/^\s*#.*$//e
-  " Restore the #vim commands
-  execute 'silent! %s/^'.l:mark.'/#vim/e'
+  silent! %s/^\s*#\(\s.*\)\?$//e
+
+  " Restore the #vim commands XXX OLD
+"  execute 'silent! %s/^'.l:mark.'/#vim/e'
 
   silent! %s/\s*\/\/.*$//e " Remove the // line comments
   silent! %s,^\s*\/\*\_.\{-}\*\/,,e " Remove the /* */ block comments
@@ -96,10 +132,10 @@ endfunction
 
 function! VimclairDoLoop()
 
-  " Convert all DO...LOOP structures.
+  " Convert all 'DO LOOP' structures.
 
-  " The Vimclair BASIC DO...LOOP structures are copied from Andy Wright's Beta
-  " BASIC, SAM BASIC and MasterBASIC: they allow UNTIL and WHILE in any
+  " The Vimclair BASIC 'DO LOOP' structures are copied from Andy Wright's Beta
+  " BASIC, SAM BASIC and MasterBASIC: they allow 'UNTIL' and 'WHILE' in any
   " combination (there are nine possible combinations).
 
   let s:doStatement=''
@@ -142,20 +178,21 @@ endfunction
 
 function! VimclairDo()
 
-  " Open a DO...LOOP.
+  " Open a 'DO LOOP' structure.
 
   " Syntax:
 
-  " DO and LOOP (with optional UNTIL or WHILE condition) must be the only
-  " statements on their lines.
+  " 'DO' and 'LOOP' (with optional 'UNTIL' or 'WHILE' condition) must be the
+  " only statements on their lines.
 
   " How this works:
 
-  " The loop start can be DO, DO UNTIL or DO WHILE.  If it's just DO, a label
-  " is enough.  If it's DO UNTIL or DO WHILE, a conditional jump has to be
-  " inserted, but the destination line is unknown until the correspondent LOOP
-  " is found.  Therefore the code in stored into s:doStatement in order to
-  " create it later (VimclairLoop() does it), with the line number added.
+  " The loop start can be 'DO', 'DO UNTIL' or 'DO WHILE'.  If it's just 'DO',
+  " a label is enough.  If it's 'DO UNTIL' or 'DO WHILE', a conditional jump
+  " has to be inserted, but the destination line is unknown until the
+  " correspondent 'LOOP' is found.  Therefore the code is stored into
+  " 's:doStatement' in order to create it later ('VimclairLoop()' does it),
+  " with the line number added.
 
   " Save the original line: 
   let l:doLine=getline('.')
@@ -163,7 +200,7 @@ function! VimclairDo()
   " Put a label instead:
   call setline('.','@do'.s:doLineNumber)
 
-  " Check the kind of DO and calculate the proper statement:
+  " Check the kind of 'DO' and calculate the proper statement:
   " Note: '\c' at the start of the patterns ignores case.
   if match(l:doLine,'\c^do\s\+while\>')>-1
     let l:conditionPos=matchend(l:doLine,'^do\s\+while\s\+')
@@ -176,14 +213,14 @@ function! VimclairDo()
   elseif match(l:doLine,'\c^do$')>-1
     let s:doStatement=''
   else
-    echo 'Error: DO bad syntax at line '.line('.').'.'
+    echoerr 'DO bad syntax at line '.line('.').'.'
   endif
 
 endfunction
 
 function! VimclairLoop()
 
-  " Close a DO...LOOP.
+  " Close a 'DO LOOP' structure.
 
   let l:loopLine=getline('.')
   let l:jump='goto @do'.s:doLineNumber
@@ -195,17 +232,17 @@ function! VimclairLoop()
   elseif match(l:loopLine,'^loop$')>-1
     execute 'substitute,^loop$,'.l:jump.',i'
   else
-    echo 'Error: LOOP bad syntax at line '.line('.').'.'
+    echoerr 'LOOP bad syntax at line '.line('.').'.'
   endif
 
   " Create a label after the end of the loop
-  " (it may be needed by DO WHILE, DO UNTIL or EXIT DO):
+  " (it may be needed by 'DO WHILE', 'DO UNTIL' or 'EXIT DO'):
   let l:loopExitLabel='@loopExit'.s:doLineNumber
   call append(line('.'),l:loopExitLabel)
 
-  " Finish the DO if necessary:
+  " Finish the 'DO' if necessary:
   if s:doStatement!=''
-    " Complete and create the jump to the DO:
+    " Complete and create the jump to the 'DO':
     call append(s:doLineNumber,s:doStatement.l:loopExitLabel)
     let s:doStatement=''
   endif
@@ -214,25 +251,24 @@ endfunction
 
 function! VimclairExitDo()
 
-  " Convert EXIT DO.
+  " Convert 'EXIT DO'.
 
-  " Syntax:
-
-  " EXIT DO must be at the end of a line.
+  " 'EXIT DO' must be at the end of a line.
+  " The form 'EXITDO' is allowed.
 
   let s:doStatement=''
 
   "echo '  XXX About to search for an EXIT DO!'
   call cursor(1,1)
-  while search('\<exit do$','Wc')
+  while search('\<exit\s\?do$','Wc')
     "echo '  XXX EXIT DO found!'
     let l:exitDoLineNumber=line('.')
     if search('^@loopExit\d\+$','W')
       let l:exitLabel=getline('.')
       call cursor(l:exitDoLineNumber,'^')
-      execute 'silent! substitute,\<exit do\>,goto '.l:exitLabel.',ei'
+      execute 'silent! substitute,\<exit\s\?do\>,goto '.l:exitLabel.',ei'
     else
-      echo 'Error: EXIT DO without LOOP at line '.exitDoLineNumber
+      echoerr 'EXIT DO without LOOP at line '.exitDoLineNumber
     endif
   endwhile
 
@@ -240,14 +276,15 @@ endfunction
 
 function! VimclairExitFor()
 
-  " Convert EXIT FOR.
+  " Convert 'EXIT FOR'.
 
-  " EXIT FOR and its correspondent NEXT must be at the end of the line.
+  " 'EXIT FOR' and its correspondent 'NEXT' must be at the end of the line.
+  " The form 'EXITFOR' is allowed.
 
   let s:doStatement=''
 
   call cursor(1,1)
-  while search('\<exit for$','Wc')
+  while search('\<exit\s\?for$','Wc')
     "echo '  XXX EXIT FOR found at line '.line('.').': '.getline('.')
     let l:exitForLineNumber=line('.')
     if search('\<next [a-z]\>','W')
@@ -255,9 +292,9 @@ function! VimclairExitFor()
       let l:exitLabel='@forExit'.line('.')
       call append(line('.'),l:exitLabel)
       call cursor(l:exitForLineNumber,'^')
-      execute 'silent! substitute,\<exit for\>,goto '.l:exitLabel.',ei'
+      execute 'silent! substitute,\<exit\s\?for\>,goto '.l:exitLabel.',ei'
     else
-      echo 'Error: EXIT FOR without NEXT at line '.exitForLineNumber
+      echoerr 'EXIT FOR without NEXT at line '.exitForLineNumber
     endif
   endwhile
   
@@ -267,70 +304,69 @@ endfunction
 
 function! VimclairIfEndif()
 
-  " Convert all IF...ENDIF structures.
+  " Convert all 'IF ENDIF' structures.
 
   " XXX TODO finish
 
-  " The Vimclair BASIC's IF...ENDIF structures are inspired by Andy Wright's
+  " The Vimclair BASIC's 'IF ENDIF' structures are inspired by Andy Wright's
   " Beta BASIC, SAM BASIC and MasterBASIC, but they are not identical.
 
   " Syntax:
-  "
-  " Short IF structures are the same than Sinclair BASIC's.
-  "
+
+  " Short 'IF' structures are the same than Sinclair BASIC's.
+
   "   IF condition THEN action
-  "
+
   " Of course they can be splitted into any number of text lines:
-  " 
+
   "   IF condition THEN \
   "     action
-  "
-  " As usual, the splitting format does not affect the parsing,
-  " as long as the required spaces are preserved before the splitting points:
-  "
+
+  " As usual, the splitting format does not affect the parsing, as long as the
+  " required spaces are preserved before the splitting points:
+  
   "   IF \
   "     condition \
   "   THEN \
   "     action
-  "
-  " Long IF structures must have 'THEN' after the first condition;
-  " ELSE IF must be at the start of the line; ELSE must be on its own line:
-  "
+  
+  " Long 'IF' structures must have 'THEN' after every condition; 'IF' and
+  " 'ELSE IF' must be at the start of the line; 'ELSEIF' is allowed; 'ELSE'
+  " must be on its own line:
+  
   "   IF condition1 THEN
   "     code1
-  "   ELSE IF condition2
+  "   ELSE IF condition2 THEN
   "     code2
   "   ELSE 
   "     code3
-  "   ENDIF
-
-  " XXX TODO Change the syntax: force THEN after the secondary conditions?
+  "   END IF
 
   "echo '  XXX About to search for a long IF!'
   call cursor(1,1)
   while search('^if .\+ then$','Wc')
 
-    " Main long IF found
+    " Main long 'IF' found
     "echo '  XXX IF found!'
     let l:ifLineNumber=line('.')
     let l:endifLabel='@endif'.l:ifLineNumber
     let l:conditionLineNumber=line('.')
-    let l:condition=substitute(getline('.'), '^if\s*\(.\{-}\)\s*then$', '\1', '')
+    let l:condition=substitute(getline('.'), '^if\s\+\(.\{-}\)\s\+then$', '\1', '')
     let l:unclosedConditionals=1 " counter
     let l:elseLineNumber=0 " used also as a flag
 
-    while search('^\(\(else\s\+\)\?if\s\+.\+\s\+then\|else\|end\s*if\)$','W')
-      " Nested long IF, ELSE IF, ELSE or ENDIF found
-      "echo '  XXX IF, ELSE or ENDIF found'
-      "echo '  XXX line: '.getline('.')
+    while search('^\(\(else\s\?\)\?if\s\+.\+\s\+then\|else\|end\s\?if\)$','W')
+      " Nested long 'IF', 'ELSE IF', 'ELSE' or 'ENDIF' found
+      echo '  XXX IF, ELSE or ENDIF found'
+      echo '  XXX line: '.getline('.')
       if strpart(getline('.'),0,2)=='if'
         " Nested long IF
         let l:unclosedConditionals=l:unclosedConditionals+1
-      elseif strpart(getline('.'),0,7)=='else if'
+      elseif match(getline('.'),"else\s\?if")==0
         " ELSE IF
         if l:unclosedConditionals==1 " current IF structure?
           if l:elseLineNumber " there was a previous ELSE?
-            echo 'Error: ELSE IF after ELSE at line '.line('.')
+            echoerr 'ELSE IF after ELSE at line '.line('.')
             break
           else
             call append(line('.')-1,'goto '.l:endifLabel)
@@ -341,15 +377,18 @@ function! VimclairIfEndif()
             call append(line('.')-1,l:elseIfLabel)
             " Keep the current condition:
             let l:conditionLineNumber=line('.')
-            let l:condition=substitute(getline('.'), '^else\s\+if\s*\(.\{-}\)\s*then$', '\1', '')
+            let l:condition=substitute(getline('.'), '^else\s\?if\s*\(.\{-}\)\s*then$', '\1', '')
             " 
           endif
         endif
-      elseif strpart(getline('.'),0,4)=='else'
+        " XXX TODO
+"      elseif strpart(getline('.'),0,4)=='else' " XXX OLD
+"      elseif match(getline('.'),"^else$")==0
+      elseif getline('.')=='else'
         " ELSE
         if l:unclosedConditionals==1 " current IF structure?
           if l:elseLineNumber " there was a previous ELSE?
-            echo 'Error: Second ELSE at line '.line('.')
+            echoerr 'Second ELSE at line '.line('.')
             break
           else
             call append(line('.')-1,'goto '.l:endifLabel)
@@ -379,7 +418,7 @@ function! VimclairIfEndif()
     endwhile
 
     if l:unclosedConditionals
-      echo 'Error: IF without ENDIF at line '.l:ifLineNumber
+      echoerr 'IF without ENDIF at line '.l:ifLineNumber
     endif
 
     call cursor(l:ifLineNumber,'$')
@@ -392,8 +431,8 @@ endfunction
 function! VimclairNot(expression)
 
   " Return the opposite of the given expression.
-  " If the expression already has a NOT at the start, just remove it;
-  " otherwise, add a NOT to it.
+  " If the expression already has a 'NOT' at the start, just remove it;
+  " otherwise, add a 'NOT' to it.
 
   let l:expression=a:expression
   let l:expression=substitute(l:expression,'^\s*\(.\{-}\)\s*$','\1','')
@@ -428,10 +467,11 @@ function! VimclairProcedures()
 
   " Syntax:
 
-  " DEF PROC and END PROC must be the only statements of the line.  The space
-  " is optional: DEFPROC and ENDPROC are valid.  EXIT PROC must be at the end
-  " of the line.  CALL must be used to call a procedure, but it can be changed
-  " to anything (e.g. PROC, or even an empty string) with '#procedureCall'.
+  " 'DEF PROC' and 'END PROC' must be the only statements of the line.  The
+  " space is optional: 'DEFPROC', 'ENDPROC' and 'EXITPROC' are valid.  'EXIT
+  " PROC' must be at the end of the line.  'CALL' must be used to call a
+  " procedure, but it can be changed to anything (e.g. 'PROC', or even an
+  " empty string) with '#procedureCall'.
 
   " Description:
 
@@ -441,14 +481,14 @@ function! VimclairProcedures()
   let s:doStatement=''
 
   call cursor(1,1)
-  while search('^def\s*proc\>','Wc')
+  while search('^def\s\?proc\>','Wc')
     "echo '  XXX DEF PROC found at line '.line('.').': '.getline('.')
     let l:procLineNumber=line('.')
     let l:procLine=getline('.')
-    let l:procNamePos=matchend(l:procLine,'^def\s*proc\s\+')
+    let l:procNamePos=matchend(l:procLine,'^def\s\?proc\s\+')
     let l:procName=strpart(l:procLine,l:procNamePos)
     if len(l:procName)==0
-      echo 'Error: DEF PROC without name at line '.l:procLineNumber
+      echoerr 'DEF PROC without name at line '.l:procLineNumber
     else
       " XXX FIXME some procs are not converted
       "echo '  XXX valid proc name: '.l:procName
@@ -466,8 +506,8 @@ function! VimclairProcedures()
     call cursor(l:procLineNumber,'$')
   endwhile
 
-  silent! %substitute,\<exit\s*proc$,return,ei
-  silent! %substitute,^end\s*proc$,return,ei
+  silent! %substitute,\<exit\s\?proc$,return,ei
+  silent! %substitute,^end\s\?proc$,return,ei
 
   call VimclairSaveStep('procedures')
   
@@ -632,7 +672,7 @@ function! VimclairConditionalConversion()
     endwhile
 
     if l:unresolvedCondition
-      echo 'Error: #IF[N]DEF without #ENDIF at line '.l:ifLineNumber
+      echoerr '#IF[N]DEF without #ENDIF at line '.l:ifLineNumber
     endif
 
   endwhile
@@ -683,12 +723,10 @@ endfunction
 
 function! VimclairRenumLine()
 
-  " Store into s:renumLine the first line number
-  " to be used by the final Sinclair BASIC program.
-  " The command #renumLine can be used to set
-  " the desired line number. Only the first occurence
-  " of #renumLine will be used; it can be anywhere
-  " in the source but always at the start of a line
+  " Store into 's:renumLine' the first line number to be used by the final
+  " Sinclair BASIC program.  The command '#renumLine' can be used to set the
+  " desired line number. Only the first occurence of '#renumLine' will be
+  " used; it can be anywhere in the source but always at the start of a line
   " (with optional indentation).
 
   let s:renumLine=1 " default value
@@ -705,14 +743,11 @@ endfunction
 
 function! VimclairProcedureCall()
 
-  " Store into s:procedureCall the command
-  " used in the source
-  " by the Sinclair BASIC program.
-  " The command #procedureCall can be used to set
-  " the desired line number. Only the first occurence
-  " of #procedureCall will be used; it can be anywhere
-  " in the source but always at the start of a line
-  " (with optional indentation).
+  " Store into 's:procedureCall' the command used in the source by the
+  " Sinclair BASIC program.  The command '#procedureCall' can be used to set
+  " the desired line number. Only the first occurence of '#procedureCall' will
+  " be used; it can be anywhere in the source but always at the start of a
+  " line (with optional indentation).
 
   let s:procedureCall='call' " default value
   
@@ -730,9 +765,9 @@ function! VimclairRunLabel()
 
   " Config the auto-run line number.
 
-  " The command #runLabel can be used to set the desired label. Only the first
-  " occurence of #runLabel will be used; it can be anywhere in the source but
-  " always at the start of a line (with optional indentation).
+  " The command '#runLabel' can be used to set the desired label. Only the
+  " first occurence of '#runLabel' will be used; it can be anywhere in the
+  " source but always at the start of a line (with optional indentation).
 
   let runLabel='' " default value (no auto-run)
   call cursor(1,1) " Go to the top of the file.
@@ -747,9 +782,9 @@ endfunction
 
 function! VimclairDefine()
 
-  " Search and execute all #define directives.
+  " Search and execute all '#define' directives.
 
-  " There can be any number of #define directives, but they must be alone on
+  " There can be any number of '#define' directives, but they must be alone on
   " their own source lines (with optional indentation).
 
   " Create an empty list to store the defined tag.
@@ -800,9 +835,9 @@ function! VimclairZXFilename()
   " name of the Vimclair BASIC source file, but without the filename
   " extension.
 
-  " The command #filename can be used to set the desired filename. Only the
-  " first occurence of #filename will be used; it can be anywhere in the source
-  " but always at the start of a line (with optional indentation).
+  " The command '#filename' can be used to set the desired filename. Only the
+  " first occurence of '#filename' will be used; it can be anywhere in the
+  " source but always at the start of a line (with optional indentation).
 
   let s:zxFilename=expand('%:r') " default: source filename without extension
   
