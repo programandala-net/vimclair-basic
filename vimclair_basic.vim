@@ -1,7 +1,7 @@
 " vimclair_basic.vim
 
 " Vimclair BASIC
-" Version A-05-20141213
+" Version A-05-201412132040
 
 " This file is part of Vimclair BASIC
 " http://programandala.net/en.program.vimclair_basic.html
@@ -347,7 +347,8 @@ function! VimclairIfEndif()
   while search('^if .\+ then$','Wc')
 
     " Main long 'IF' found
-    "echo '  XXX IF found!'
+"    echo 'XXX IF found'
+"    echo '<'.getline('.').'>'
     let l:ifLineNumber=line('.')
     let l:endifLabel='@endif'.l:ifLineNumber
     let l:conditionLineNumber=line('.')
@@ -357,13 +358,15 @@ function! VimclairIfEndif()
 
     while search('^\(\(else\s\?\)\?if\s\+.\+\s\+then\|else\|end\s\?if\)$','W')
       " Nested long 'IF', 'ELSE IF', 'ELSE' or 'ENDIF' found
-      echo '  XXX IF, ELSE or ENDIF found'
-      echo '  XXX line: '.getline('.')
+"      echo '  XXX IF, ELSE IF, ELSE or ENDIF found'
+"      echo '  <'.getline('.').'>'
       if strpart(getline('.'),0,2)=='if'
         " Nested long IF
         let l:unclosedConditionals=l:unclosedConditionals+1
-      elseif match(getline('.'),"else\s\?if")==0
+      elseif match(getline('.'),'else\s\?if')==0
         " ELSE IF
+"        echo '  XXX ELSE IF found'
+"        echo '  <'.getline('.').'>'
         if l:unclosedConditionals==1 " current IF structure?
           if l:elseLineNumber " there was a previous ELSE?
             echoerr 'ELSE IF after ELSE at line '.line('.')
@@ -381,11 +384,10 @@ function! VimclairIfEndif()
             " 
           endif
         endif
-        " XXX TODO
-"      elseif strpart(getline('.'),0,4)=='else' " XXX OLD
-"      elseif match(getline('.'),"^else$")==0
       elseif getline('.')=='else'
         " ELSE
+"        echo '  XXX ELSE found'
+"        echo '  <'.getline('.').'>'
         if l:unclosedConditionals==1 " current IF structure?
           if l:elseLineNumber " there was a previous ELSE?
             echoerr 'Second ELSE at line '.line('.')
@@ -405,6 +407,8 @@ function! VimclairIfEndif()
         endif
       else
         " ENDIF
+"        echo '  XXX ENDIF found'
+"        echo '  <'.getline('.').'>'
         let l:unclosedConditionals=l:unclosedConditionals-1
         if l:unclosedConditionals==0 " current IF structure?
           call setline('.',l:endifLabel)
@@ -438,7 +442,7 @@ function! VimclairNot(expression)
   let l:expression=substitute(l:expression,'^\s*\(.\{-}\)\s*$','\1','')
   " XXX Somehow, '\>' does not work in the following pattern, so
   " '[ (]' is used instead:
-  if match(l:expression,"^not[ (]")==0
+  if match(l:expression,'^not[ (]')==0
     let l:expression=substitute(l:expression,'^not\s*\(.\{-}\)$','\1','')
     let l:expression=VimclairWithoutParens(l:expression)
   else
@@ -735,6 +739,7 @@ function! VimclairRenumLine()
   if search('^\s*#renumline\>','Wc')
     let l:valuePos=matchend(getline('.'),'^\s*#renumline\s*')
     let s:renumLine=strpart(getline('.'),l:valuePos)
+    call setline('.','')
   endif
   " XXX TODO check the number
   echo 'Renum line: '.s:renumLine
@@ -755,6 +760,7 @@ function! VimclairProcedureCall()
   if search('^\s*#procedurecall\>','Wc')
     let l:valuePos=matchend(getline('.'),'^\s*#procedurecall\s*')
     let s:procedureCall=strpart(getline('.'),l:valuePos)
+    call setline('.','')
   endif
 
   echo s:procedureCall ? 'Procedure call prefix: '.s:procedureCall : 'No procedure call prefix'
@@ -769,11 +775,12 @@ function! VimclairRunLabel()
   " first occurence of '#runLabel' will be used; it can be anywhere in the
   " source but always at the start of a line (with optional indentation).
 
-  let runLabel='' " default value (no auto-run)
+  let s:runLabel='' " default value (no auto-run)
   call cursor(1,1) " Go to the top of the file.
   if search('^\s*#runLabel\>','Wc')
     let l:valuePos=matchend(getline('.'),'^\s*#runLabel\s*')
     let s:runLabel=strpart(getline('.'),l:valuePos)
+    call setline('.','')
   endif
 
   echo empty(s:runLabel) ? 'No auto-run' : 'Auto-run label: '.s:runLabel
@@ -845,6 +852,7 @@ function! VimclairZXFilename()
   if search('^\s*#filename\>','Wc')
     let l:valuePos=matchend(getline('.'),'^#filename\s*')
     let s:zxFilename=strpart(getline('.'),l:valuePos)
+    call setline('.','')
   endif
     
   echo 'ZX Spectrum filename: '.s:zxFilename
@@ -1072,6 +1080,10 @@ function! VimclairBasfile()
   silent update " Write the current Vimclair BASIC file if needed
   split " Split the window
   let s:basFilename=expand('%:r').'.bas'
+  try
+  silent execute 'bd '.s:basFilename
+  catch /E94:/
+  endtry
   silent execute 'write! '.s:basFilename
   silent execute 'edit '.s:basFilename
 
