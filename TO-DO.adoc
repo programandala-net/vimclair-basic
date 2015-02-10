@@ -1,0 +1,156 @@
+= To-do list of Vimclair BASIC
+:author: Marcos Cruz (programandala.net)
+:revdate: 2015-02-09
+
+== 2014-08-01
+
+Improve: parens used by `NOT` to enclose the `WHILE`.
+
+Improve: `UNTIL` or `IF` expressions can be ommited in certain cases.
+
+New: `EXIT DO n`, to exit the n-th loop.
+
+Procedures with parameters. Idea:
+
+Original:
+
+----
+   myproc 123,"hello"
+   stop
+   defproc myproc arg1,a$
+     print arg1,a$
+   endproc
+----
+
+Conversion:
+
+----
+   let arg1=123:let a$="hello":gosub @myproc
+   stop
+   @myproc
+   print arg1,a$
+   return
+----
+
+== 2014-08-04
+
+New: `CASE` structure.
+
+Optimize the chained jumps created by the control structures.
+
+Example code:
+
+----
+   if not(a<30) then goto @endif10 <<<<----- change to @endif2
+   print "20 to 29"
+   @endif10
+   goto @endif2
+----
+
+Improvement: Check duplicated labels.
+
+== 2014-08-05
+
+New: Simulate ON with jumps.
+
+New: INARRAY, INSTR and TRUNC$, SHIFT$ in machine code, in a REM.
+
+`EXIT IF x` -> `IF x THEN EXIT DO`
+
+Check all identifiers are matched at the start of the line or after a
+colon; this will prevent some mismatchs in text strings.
+
+Fix: label definitions with uppercase letters are not recognized and
+removed.
+
+Improvement: make `silent` configurable in #vim substitutions.
+
+Improvement: error message if #include file is not found.
+
+Improvement: now substitions can change ordinary texts. A fixed format
+is required, e.g. variable& or !constant!...  Why not to use a common
+format for all variables, and let Vimclair BASIC to do the name
+translations automatically? The convertor would use the first empty
+name, from a$ to z$.
+
+== 2014-08-06
+
+New: #if ... #endif.
+
+== 2014-08-10
+
+Fix: If a expression starts with a `NOT`, it should be removed instead
+of adding another `NOT` to it (when loops and conditional are
+converted to jumps).
+
+== 2014-08-15
+
+Optimize: gosub X:endproc --> goto X
+
+== 2014-10-20
+
+Optimize: gosub X:return --> goto X
+
+== 2014-12-13
+
+Make tracing optional.
+
+== 2014-12-14
+
+Make `#include` and config recursive.
+
+== 2015-02-09
+
+Unused keywords removed from the syntax file; some of them could be
+added to the language, with simple substitutions or assembler
+functions:
+
+----
+"syn keyword vimclairbasicFunction INSTR " XXX TODO
+"syn keyword vimclairbasicFunction LOCN
+"syn keyword vimclairbasicFunction NVAL
+"syn keyword vimclairbasicFunction RAMTOP " XXX TODO
+"syn keyword vimclairbasicFunction MEM$
+" XXX TODO RAND
+"syn keyword vimclairbasicFunction SCRAD " XXX TODO
+"syn keyword vimclairbasicFunction SHIFT$ " XXX TODO
+"syn keyword vimclairbasicFunction STRING$ " XXX TODO
+"syn keyword vimclairbasicFunction SVAL$
+"syn keyword vimclairbasicFunction SVAR
+"syn keyword vimclairbasicFunction TICS " XXX TODO
+"syn keyword vimclairbasicFunction TRUNC$
+"syn keyword vimclairbasicFunction UDG " XXX TODO like in SE Basic IV
+"syn keyword vimclairbasicFunction USING$
+"syn match vimclairbasicStructure "\<EXIT \?IF\>"
+"syn keyword vimclairbasicStructure ON " XXX TODO
+"syn keyword vimclairbasicFunction DIR$ " XXX TODO for +3e
+"syn keyword vimclairbasicFunction DPEEK " XXX TODO
+"syn keyword vimclairbasicFunction FREE " XXX TODO
+"syn keyword vimclairbasicCommand DISPLAY
+"syn keyword vimclairbasicCommand DPOKE " XXX TODO
+"syn keyword vimclairbasicCommand DUMP
+" XXX TODO multiple LET and DIM
+" XXX TODO simulate SCROLL RESTORE and SCROLL CLEAR with POKE
+"syn keyword vimclairbasicCommand GET
+"syn keyword vimclairbasicCommand GRAB
+"syn keyword vimclairbasicCommand HIDE
+"syn keyword vimclairbasicCommand JOIN
+"syn keyword vimclairbasicCommand KEY
+"syn keyword vimclairbasicCommand MOVE
+"syn keyword vimclairbasicCommand POP
+"syn keyword vimclairbasicCommand POW
+"syn keyword vimclairbasicCommand PROTECT
+"syn keyword vimclairbasicCommand PUT
+"syn keyword vimclairbasicCommand RECORD
+"syn keyword vimclairbasicCommand RENAME
+"syn keyword vimclairbasicCommand ROLL
+"syn keyword vimclairbasicCommand SCREEN
+"syn keyword vimclairbasicCommand SCROLL
+"syn keyword vimclairbasicCommand SORT
+"syn keyword vimclairbasicCommand SOUND
+"syn keyword vimclairbasicCommand TIME
+"syn keyword vimclairbasicMathsOperator MOD " XXX TODO simulate MOD(x,y)
+"syn keyword vimclairbasicCommand FILL
+----
+
+New: Hex numbers, both & and 0x notations.

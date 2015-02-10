@@ -1,25 +1,25 @@
-" vimclair_basic.vim
+" vimbas2tap.vim
 
-" Vimclair BASIC
+" vimbas2tap
 " Version A-05-201502100105
 
 " This file is part of Vimclair BASIC
 " http://programandala.net/en.program.vimclair_basic.html
 
-" Copyright (C) 2014 Marcos Cruz (programandala.net)
+" Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
 
-" Vimclair BASIC is free software; you can redistribute it and/or modify it
-" under the terms of the GNU General Public License as published by the Free
-" Software Foundation; either version 2 of the License, or (at your option)
+" vimbas2tap is free software; you can redistribute it and/or modify it under
+" the terms of the GNU General Public License as published by the Free
+" Software Foundation; either version 3 of the License, or (at your option)
 " any later version.
 "
-" Vimclair BASIC is distributed in the hope that it will be useful, but
-" WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-" or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+" vimbas2tap is distributed in the hope that it will be useful, but WITHOUT
+" ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+" FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 " more details.
 "
 " You should have received a copy of the GNU General Public License along with
-" this program; if not, see <http://gnu.org/licenses>.
+" vimbas2tap; if not, see <http://gnu.org/licenses>.
 
 " ----------------------------------------------
 " Description
@@ -27,45 +27,15 @@
 " This program, written in Vim, converts a Vimclair BASIC source code into an
 " actual Sinclair BASIC program in a TAP file.
 
-" Vimclair BASIC offers the following advantages over Sinclair BASIC:
-"
-" - C-style block and line comments.
-" - Bash-style line comments.
-" - Labels instead of line numbers.
-" - #vim directive to execute any Vim command in the source.
-" - Long variable names for strings, arrays and FOR loops (using the #vim
-"   directive).
-" - Control structures (can be nested):
-"   - DO ... LOOP
-"   - DO ... LOOP UNTIL
-"   - DO ... LOOP WHILE
-"   - DO UNTIL... LOOP
-"   - DO UNTIL ... LOOP UNTIL
-"   - DO UNTIL ... LOOP WHILE
-"   - DO WHILE ... LOOP
-"   - DO WHILE ... LOOP UNTIL
-"   - DO WHILE ... LOOP WHILE
-"   - EXIT DO
-"   - EXIT FOR
-"   - IF ... THEN ... ENDIF
-"   - IF ... THEN ... ELSE ... ENDIF
-"   - IF ... THEN ... ELSE IF ... ELSE ... ENDIF
-"     (with any number of ELSE IF)
-" - Procedures (without parameters):
-"   - DEF PROC, END PROC, EXIT PROC, CALL.
-"   (Procedures with parameters can be simulated ad hoc with the #vim directive.)
-" - The CALL command can be changed with '#procedureCall', e.g.:
-"     #procedureCall proc
-"   Or even make it empty:
-"     #procedureCall
+" More details in the <README.adoc> file and
+" <http://programandala.net/en.program.vimclair_basic.html>.
 
 " ----------------------------------------------
 " Requirements
 
-" Vimclair BASIC needs BAS2TAP (by Martijn van der Heide of ThunderWare
-" Research Center) to be installed in your system.  It has been tested with
-" BAS2TAP v2.4 (release 2005-07-24), the latest version at the time of
-" writing.
+" This program needs BAS2TAP (by Martijn van der Heide of ThunderWare Research
+" Center) to be installed in your system.  It has been tested with BAS2TAP
+" v2.4 (release 2005-07-24), the latest version at the time of writing.
 
 " You can always freely obtain the latest version of BAS2TAP from the
 " utilities section of World of Spectrum:
@@ -82,13 +52,6 @@
 "    strip bas2tap
 "    sudo mv bas2tap /usr/local/bin/
 
-" ----------------------------------------------
-" To-do and change log
-
-" See the file:
-" <vimclair_basic.pending.adoc>
-" Visit the URL: 
-" <http://programandala.net/en.program.vimclair_basic.history.html>
 
 " ----------------------------------------------
 
@@ -1159,7 +1122,7 @@ endfunction
 " ----------------------------------------------
 " Main
 
-function! VimclairBASIC()
+function! Vimbas2TAP()
 
   let s:shortmessBackup=&shortmess
   set shortmess=at
@@ -1168,7 +1131,7 @@ function! VimclairBASIC()
 
   let s:step=0 " counter for the saved step files
   
-  echo "Converting Vimclair BASIC to Sinclair BASIC..." 
+  echo "vimbas2tap..." 
   call VimclairBasfile()
   call VimclairInclude()
   call VimclairConfig()

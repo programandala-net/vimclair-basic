@@ -1,0 +1,120 @@
+= Vimclair BASIC (README file)
+:author: Marcos Cruz (programandala.net)
+:revdate: 2015-02-09
+
+// This file is part of Vimclair BASIC
+// This file is written in AsciiDoc/Asciidoctor format
+
+== Author and license
+
+Vimclair BASIC
+Copyright (C) 2014,2015 Marcos Cruz (programandala.net).
+
+________________________________________________________________
+
+Vimclair BASIC is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 3 of
+the License, or (at your option) any later version.
+
+Vimclair BASIC is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public
+License along with Vimclair BASIC; if not, see
+<http://gnu.org/licenses>.
+________________________________________________________________
+
+== Description
+
+Vimclair BASIC is two things:
+
+1. An improved version of Sinclair BASIC.
+
+2. A program that converts a Vimclair BASIC source file to a TAP
+file with its Sinclair BASIC equivalent.
+
+Actually, Vimclair BASIC is just a Sinclair BASIC preprocessor
+written in the Vim language — but it looks a different language.
+
+== Features
+
+- C-style block and line comments.
+- Bash-style line comments.
+- Labels instead of line numbers.
+- `#vim` directive to execute any Vim command in the source.
+- Long variable names for strings, arrays and `FOR` loops (using
+  the `#vim` directive).
+- Control structures (can be nested):
+  - DO ... LOOP
+  - DO ... LOOP UNTIL
+  - DO ... LOOP WHILE
+  - DO UNTIL... LOOP
+  - DO UNTIL ... LOOP UNTIL
+  - DO UNTIL ... LOOP WHILE
+  - DO WHILE ... LOOP
+  - DO WHILE ... LOOP UNTIL
+  - DO WHILE ... LOOP WHILE
+  - EXIT DO
+  - EXIT FOR
+  - IF ... THEN ... ENDIF
+  - IF ... THEN ... ELSE ... ENDIF
+  - IF ... THEN ... ELSE IF ... ELSE ... ENDIF (with any number
+    of ELSE IF)
+- Procedures (without parameters):
+  - DEF PROC, END PROC, EXIT PROC, CALL.  (Procedures with
+    parameters can be simulated ad hoc with the #vim directive.)
+- The CALL command can be changed with '#procedureCall', e.g.:
+  #procedureCall proc Or even make it empty: #procedureCall
+
+More information and examples:
+
+<http://programandala.net/en.program.vimclair_basic.html>.
+
+== Files
+
+- <LICENSE.txt>:
+  A copy of the GNU General Public License.
+
+- <README.adoc>:
+  This file.
+
+- <TO-DO.adoc>:
+  Pending fixes and features.
+
+- <vimbas2tap.sh>:
+  Command line version of the Vimclair BASIC converter.
+
+- <vim/plugins/vimbas2tap.vim>:
+  Vimclair BASIC converter.
+
+- <vim/ftdetect/vimclairbasic.vim>:
+  Vimclair BASIC Vim filetype detect
+  (how Vim knows, by the filename extension,
+  that you are opening a Vimclair BASIC source file).
+
+- <vim/ftplugin/vimclairbasic.vim>:
+  Vimclair BASIC Vim filetype plugin
+  (configuration and editing preferences for
+  Vimclair BASIC source files).
+
+- <vim/syntax/vimclairbasic.vim>:
+  Vimclair BASIC Vim syntax highlighting file.
+
+== Installation
+
+1) Copy the content of the <vim/> directory into your <~/.vim/>
+directory:
+
+  cp -r vim/* ~/.vim
+
+2) Create a link to the <vimbas2tap.sh> file, with your command
+name of choice (e.g. "vimbas2tap" or "vb2tap"), into a directory
+in your path (usually <~/bin/> or </usr/local/bin/>), 
+
+  ln -s vimbas2tap.sh ~/bin/vimbas2tap
+
+
+// vim:tw=64:ts=2:sts=2:et:
