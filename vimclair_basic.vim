@@ -1,7 +1,7 @@
 " vimclair_basic.vim
 
 " Vimclair BASIC
-" Version A-05-201412132040
+" Version A-05-201502100105
 
 " This file is part of Vimclair BASIC
 " http://programandala.net/en.program.vimclair_basic.html
@@ -24,8 +24,8 @@
 " ----------------------------------------------
 " Description
 
-" This program, written in Vim Script, converts a Vimclair BASIC source code
-" into an actual Sinclair BASIC program in a TAP file.
+" This program, written in Vim, converts a Vimclair BASIC source code into an
+" actual Sinclair BASIC program in a TAP file.
 
 " Vimclair BASIC offers the following advantages over Sinclair BASIC:
 "
@@ -68,7 +68,7 @@
 " writing.
 
 " You can always freely obtain the latest version of BAS2TAP from the
-" utilities section of The World of Spectrum, at:
+" utilities section of World of Spectrum:
 
 "    http://www.worldofspectrum.org/
 
@@ -85,9 +85,10 @@
 " ----------------------------------------------
 " To-do and change log
 
-" See the files:
+" See the file:
 " <vimclair_basic.pending.adoc>
-" <vimclair_basic.history.adoc>
+" Visit the URL: 
+" <http://programandala.net/en.program.vimclair_basic.history.html>
 
 " ----------------------------------------------
 
@@ -112,7 +113,7 @@ function! VimclairClean()
   silent! %s/^\n//e " Remove the empty lines
   silent! %s/\\\n//e " Join the splitted lines
 
-  echo 'Source code cleaned.'
+  echo 'Source code cleaned'
 
   call VimclairSaveStep('clean')
   
@@ -213,7 +214,7 @@ function! VimclairDo()
   elseif match(l:doLine,'\c^do$')>-1
     let s:doStatement=''
   else
-    echoerr 'DO bad syntax at line '.line('.').'.'
+    echoerr 'DO bad syntax at line '.line('.')
   endif
 
 endfunction
@@ -232,7 +233,7 @@ function! VimclairLoop()
   elseif match(l:loopLine,'^loop$')>-1
     execute 'substitute,^loop$,'.l:jump.',i'
   else
-    echoerr 'LOOP bad syntax at line '.line('.').'.'
+    echoerr 'LOOP bad syntax at line '.line('.')
   endif
 
   " Create a label after the end of the loop
@@ -543,11 +544,11 @@ function! VimclairVim()
   silent! %s/^\n//e " Remove the empty lines
 
   if l:vimCommands==0
-    echo 'No Vim command found.'
+    echo 'No Vim command found'
   elseif l:vimCommands==1
-    echo 'One Vim command executed.'
+    echo 'One Vim command executed'
   else
-    echo l:vimCommands 'Vim commands executed.'
+    echo l:vimCommands 'Vim commands executed'
   endif
 
   call VimclairSaveStep('vim_commands')
@@ -575,11 +576,11 @@ function! VimclairInclude()
   endwhile
 
   if l:includedFiles==0
-    echo 'No file included.'
+    echo 'No file included'
   elseif l:includedFiles==1
-    echo 'One file included.'
+    echo 'One file included'
   else
-    echo l:includedFiles 'files included.'
+    echo l:includedFiles 'files included'
   endif
 
   call VimclairSaveStep('included_files')
@@ -794,8 +795,7 @@ function! VimclairDefine()
   " There can be any number of '#define' directives, but they must be alone on
   " their own source lines (with optional indentation).
 
-  " Create an empty list to store the defined tag.
-  let s:definedTags=[]
+  let s:definedTags=[] " a list for the '#define' tags 
 
   call cursor(1,1) " Go to the top of the file.
   while search('^\s*#define\>','Wc')
@@ -810,10 +810,12 @@ function! VimclairDefine()
 
   let l:tags=len(s:definedTags)
   if l:tags==1
-    echo l:tags.' #define directive.'
+    echo l:tags.' #define directive'
   elseif l:tags>1 
-    echo l:tags.' #define directives.'
+    echo l:tags.' #define directives'
   endif
+
+  call VimclairSaveStep('defined_tags')
 
 endfunction
 
@@ -846,7 +848,8 @@ function! VimclairZXFilename()
   " first occurence of '#filename' will be used; it can be anywhere in the
   " source but always at the start of a line (with optional indentation).
 
-  let s:zxFilename=expand('%:r') " default: source filename without extension
+  " Default ZX Spectrum filename: source filename without extension:
+  let s:zxFilename=fnamemodify(expand('%'),':t:r')
   
   call cursor(1,1) " Go to the top of the file.
   if search('^\s*#filename\>','Wc')
@@ -855,6 +858,7 @@ function! VimclairZXFilename()
     call setline('.','')
   endif
     
+  let s:zxFilename=strpart(s:zxFilename,0,10) " max length: 10 chars
   echo 'ZX Spectrum filename: '.s:zxFilename
 
 endfunction
@@ -927,14 +931,15 @@ function! VimclairLabels()
       execute 'substitute/'.l:label.'\>/'.l:lineNumber[l:label].'/i'
     endwhile
   endfor
- 
+
+  let s:runLine=0 " default: no auto-run
   if !empty(s:runLabel) 
     let s:runLine=l:lineNumber[s:runLabel]
   endif
 
   let &ignorecase=l:ignoreCaseBackup
 
-  echo 'Labels translated.'
+  echo 'Labels translated'
 
   call VimclairSaveStep('labels')
   
@@ -960,7 +965,7 @@ function! VimclairRenum()
   " Remove empty lines
   silent! %substitute/^\s*\d\+\s\+\n//e
 
-  echo 'Line numbers added.'
+  echo 'Line numbers added'
 
   call VimclairSaveStep('line_numbers')
 
@@ -1056,7 +1061,7 @@ function! VimclairChars()
   " XXX TODO make all BASin stuff optional
   silent! %s/\\#\(\d\+\)/\=nr2char(submatch(1))/g
 
-  echo 'Special chars translated.'
+  echo 'Special chars translated'
 
   call VimclairSaveStep('embedded_chars_in_basin_format')
   
@@ -1087,13 +1092,12 @@ function! VimclairBasfile()
   silent execute 'write! '.s:basFilename
   silent execute 'edit '.s:basFilename
 
-  echo 'BAS file created.'
+  echo 'BAS file created'
 
 endfunction
 
 function! VimclairTapFile()
 
-  " XXX TODO check if bas2tap is installed
 
   "   BAS2TAP v2.4 by Martijn van der Heide of ThunderWare Research Center
   "   
@@ -1106,25 +1110,23 @@ function! VimclairTapFile()
   "          -a = set auto-start line in BASIC header
   "          -s = set "filename" in BASIC header
 
+  " XXX TODO check if bas2tap is installed
   " XXX TODO config with more directives
   " XXX TODO show possible errors
   let l:tapFilename=expand('%:r').'.tap'
-" XXX OLD
-"  if len(s:zxFilename)=0
-"    let s:zxFilename=expand('%:r')
-"  endif
   let l:autorun=s:runLine ? ' -a'.s:runLine : ''
-  execute '!bas2tap -q -c -n'.l:autorun.' -s'.s:zxFilename.' '.s:basFilename.' '.l:tapFilename
+  silent! execute '!bas2tap -q -c -n'.l:autorun.' -s'.s:zxFilename.' '.s:basFilename.' '.l:tapFilename
   " XXX TODO only if no error happened:
-  echo 'TAP file created.'
+  echo 'TAP file created'
 
 endfunction
 
 " ----------------------------------------------
 " Generic functions
 
-" XXX TMP
 function! Trim(input_string)
+  " Remove trailing spaces from a string.
+  " Reference:
   " http://stackoverflow.com/questions/4478891/is-there-a-vimscript-equivalent-for-rubys-strip-strip-leading-and-trailing-s
   return substitute(a:input_string, '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
@@ -1165,13 +1167,12 @@ function! VimclairBASIC()
   set ignorecase
 
   let s:step=0 " counter for the saved step files
-
+  
   echo "Converting Vimclair BASIC to Sinclair BASIC..." 
   call VimclairBasfile()
-  call VimclairConfig()
-  call VimclairConditionalConversion() " first, before including other files
   call VimclairInclude()
-  call VimclairConditionalConversion() " second, for the included files
+  call VimclairConfig()
+  call VimclairConditionalConversion()
   call VimclairClean()
   call VimclairVim()
   call VimclairControlStructures()
@@ -1185,7 +1186,7 @@ function! VimclairBASIC()
 
   silent w
   silent bw 
-  echo 'BAS file saved and closed.'
+  echo 'BAS file saved and closed'
 
   call VimclairTapFile()
   
@@ -1195,15 +1196,5 @@ function! VimclairBASIC()
   echo 'Done!'
 
 endfunction
-
-" Shortkey ',vb' in normal mode
-" to create a Vimclair BASIC file:
-nmap <silent> ,vb :call VimclairBASIC()<CR>
-
-echo 'Vimclair BASIC converter'
-echo '========================'
-echo 'While you are editing your Vimclair BASIC source,'
-echo 'you can run the converter just typing the following 3 keys'
-echo '(in normal mode): ,vb'
 
 " vim:tw=78:ts=2:sts=2:et:
