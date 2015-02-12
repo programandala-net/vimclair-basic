@@ -1,4 +1,4 @@
-= Vimclair BASIC (README file)
+= Vimclair BASIC Readme
 :author: Marcos Cruz (programandala.net)
 :revdate: 2015-02-09
 
@@ -36,8 +36,37 @@ Vimclair BASIC is two things:
 2. A program that converts a Vimclair BASIC source file to a TAP
 file with its Sinclair BASIC equivalent.
 
-Actually, Vimclair BASIC is just a Sinclair BASIC preprocessor
+Actually, Vimclair BASIC is a Sinclair BASIC preprocessor
 written in the Vim language — but it looks a different language.
+
+== Motivation and goal
+
+In summer 2014 I had the idea to start a new project in Sinclair
+BASIC for the ZX Spectrum +3e but I missed two things:
+
+1) The improvements of SAM Coupé's MasterBASIC (a descendant of
+ZX Spectrum's Beta BASIC): control structures, procs, labels,
+long variable names…
+
+2) Vim. The Vim editor has been my main work tool for many
+years. I can not imagine writing code, in any language, without
+the endless power of Vim.
+
+I investigated and tried all the available tools that convert
+Sinclair BASIC from plain text files to actual emulator files,
+but no-one was what I needed, so finally I decided to write my
+own tool, based on previous works of mine (BBim for Beta BASIC,
+MBim for MasterBASIC and SBim for SuperBASIC).
+
+I've been written Vimclair BASIC along with my ZX Spectrum +3e
+project in Vimclair BASIC, in parallel, so the language and the
+converter have been well tested during the development.
+Vimclair BASIC works great: It makes the development of BASIC
+programs for ZX Spectrum much more productive and fun.
+
+Vimclair BASIC is not fully finished yet:  there are some
+features still waiting to be implemented, and sure there are
+some hidden bugs too.
 
 == Features
 
@@ -61,17 +90,17 @@ written in the Vim language — but it looks a different language.
   - EXIT FOR
   - IF ... THEN ... ENDIF
   - IF ... THEN ... ELSE ... ENDIF
-  - IF ... THEN ... ELSE IF ... ELSE ... ENDIF (with any number
-    of ELSE IF)
+  - IF ... THEN ... ELSE IF ... ELSE ... ENDIF
+    (with any number of ELSE IF)
 - Procedures (without parameters):
   - DEF PROC, END PROC, EXIT PROC, CALL.  (Procedures with
     parameters can be simulated ad hoc with the #vim directive.)
 - The CALL command can be changed with '#procedureCall', e.g.:
   #procedureCall proc Or even make it empty: #procedureCall
 
-More information and examples:
-
-<http://programandala.net/en.program.vimclair_basic.html>.
+// More information and examples can be found in the
+// Vimclair BASIC webpage:
+// http://programandala.net/en.program.vimclair_basic.html
 
 == Files
 
@@ -84,11 +113,11 @@ More information and examples:
 - <TO-DO.adoc>:
   Pending fixes and features.
 
-- <vimbas2tap.sh>:
-  Command line version of the Vimclair BASIC converter.
+- <vbas2tap.sh>:
+  Command line wrapper for the Vimclair BASIC to TAP converter.
 
-- <vim/plugins/vimbas2tap.vim>:
-  Vimclair BASIC converter.
+- <vim/plugins/vbas2tap.vim>:
+  Vimclair BASIC to TAP converter.
 
 - <vim/ftdetect/vimclairbasic.vim>:
   Vimclair BASIC Vim filetype detect
@@ -103,18 +132,82 @@ More information and examples:
 - <vim/syntax/vimclairbasic.vim>:
   Vimclair BASIC Vim syntax highlighting file.
 
+== Requirements
+
+The Vimclair BASIC converter, <vbas2tap.vim>, needs BAS2TAP (by
+Martijn van der Heide of ThunderWare Research Center) to be
+installed in your system.
+
+Vimclair BASIC has been tested with BAS2TAP v2.4 (release
+2005-07-24), the latest version at the time of writing.
+
+You can always freely obtain the latest version of BAS2TAP from
+the utilities section of
+http://www.worldofspectrum.org/[World of Spectrum]
+or the
+ftp://ftp.worldofspectrum.org/pub/sinclair/tools/pc[World of Spectrum FTP].
+
+This is how I compiled and installed BAS2TAP on Debian:
+
+----
+gcc -Wall -O2 bas2tap.c -o bas2tap -lm
+strip bas2tap
+sudo mv bas2tap /usr/local/bin/
+----
+
 == Installation
 
-1) Copy the content of the <vim/> directory into your <~/.vim/>
+1) Extract the contents of the tar file:
+
+----
+tar xvz vimclair_basic.tar.gz
+----
+
+2) Enter the new directory:
+
+----
+cd vimclair_basic
+----
+
+3) Copy the content of the <vim/> directory into your <~/.vim/>
 directory:
 
-  cp -r vim/* ~/.vim
+----
+cp -r vim/* ~/.vim
+----
 
-2) Create a link to the <vimbas2tap.sh> file, with your command
-name of choice (e.g. "vimbas2tap" or "vb2tap"), into a directory
-in your path (usually <~/bin/> or </usr/local/bin/>), 
+4) Create a link to the <vbas2tap.sh> file, with your command
+name of choice (e.g. "vbas2tap"), into a directory in your path
+(usually <~/bin/> or </usr/local/bin/>):
 
-  ln -s vimbas2tap.sh ~/bin/vimbas2tap
+----
+ln -s vbas2tap.sh ~/bin/vbas2tap
+----
 
+If you prefer the system-wide </usr/local/bin/> directory:
+
+----
+sudo ln -s vbas2tap.sh /usr/local/bin/vbas2tap
+----
+
+In the examples above, symbolic links are used. You can create
+hard links instead, copy or even move the file.
+
+That's all.
+
+== Usage
+
+Vimclair BASIC source files use the VBAS filename extension.
+
+Whenever you open a Vimclair BASIC program with Vim, the proper
+syntax highlighting will be selected, and the normal-mode key
+map '.tap' (defined in <vim/ftplugin/vimclairbasic.vim>) will
+convert your source to a TAP file.
+
+You can use also the command line converter from your OS shell:
+
+----
+vbas2tap program.vbas
+----
 
 // vim:tw=64:ts=2:sts=2:et:
