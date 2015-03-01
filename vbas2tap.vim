@@ -36,12 +36,15 @@ let s:version='A-07-20150228'
 " ----------------------------------------------
 " Requirements
 
-" This program needs either BAS2TAP or zmakebas:
+" In order to convert the sources to a TAP file, this program
+" needs either BAS2TAP or zmakebas (the '#tapmaker' directive is
+" used to choose one of them; if empty, no TAP will be created).
 
+" ..............................
 " BAS2TAP (by Martijn van der Heide of ThunderWare Research
 " Center)
 "
-" At the time of writing, its latest version (v2.4, release
+" At the time of writing (2015-03), its latest version (v2.4, release
 " 2005-07-24), can be obtained from the utilities section of
 " World of Spectrum (http://www.worldofspectrum.org/); or you
 " can try <ftp://ftp.worldofspectrum.org/pub/sinclair/tools/pc>.
@@ -52,12 +55,12 @@ let s:version='A-07-20150228'
 "    strip bas2tap
 "    sudo mv bas2tap /usr/local/bin/
 
+" ..............................
 " zmakebas (by Russel Marks)
 "
-" At the time of writing, its latest version (1.2, release 2004)
+" At the time of writing (2015-03), its latest version (1.2, release 2004)
 " is a package of Debian, Raspbian, Ubuntu and probably other
 " distros.
-
 
 " ----------------------------------------------
 
