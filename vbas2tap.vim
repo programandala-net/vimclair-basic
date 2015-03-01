@@ -30,7 +30,7 @@ let s:version='A-07-20150228'
 " vbas2tap converts a Vimclair BASIC source file
 " to Sinclair BASIC in a TAP file.
 
-" More details in the <README.adoc> file and
+" More details in the <README.md> file and
 " <http://programandala.net/en.program.vimclair_basic.html>.
 
 " ----------------------------------------------
@@ -810,8 +810,6 @@ endfunction
 
 function! VimclairZXFilename()
 
-  " XXX FIXME check valid filenames
-
   " Set the filename used inside the TAP file.  Its default value is the
   " name of the Vimclair BASIC source file, but without the filename
   " extension.
@@ -819,6 +817,8 @@ function! VimclairZXFilename()
   " The command '#filename' can be used to set the desired filename. Only the
   " first occurence of '#filename' will be used; it can be anywhere in the
   " source but always at the start of a line (with optional indentation).
+
+  " XXX FIXME check valid filenames
 
   " Default ZX Spectrum filename: source filename without extension:
   let s:zxFilename=fnamemodify(expand('%'),':t:r')
@@ -848,13 +848,21 @@ function! VimclairTAPMaker()
   let s:tapmaker='bas2tap'
   
   call cursor(1,1) " Go to the top of the file.
-  if search('^\s*#bastotap\>','Wc')
-    let l:valuePos=matchend(getline('.'),'^#bas2tap\s*')
+  if search('^\s*#tapmaker\>','Wc')
+    let l:valuePos=matchend(getline('.'),'^#tapmaker\s*')
     let s:tapmaker=strpart(getline('.'),l:valuePos)
     call setline('.','')
   endif
-    
-  echo 'BAS to TAP converter: '.s:tapmaker
+
+  let s:validTAPMaker=(match(['bas2tap','zmakebas'],s:tapmaker)!=-1)
+  if empty(s:tapmaker)
+    echo 'No BAS to TAP converter specified: No TAP will be created'
+  elseif s:validTAPMaker
+    echo 'BAS to TAP converter: '.s:tapmaker
+  else
+    echo 'Unknown BAS to TAP converter: '.s:tapmaker
+    let s:tapmaker=''
+  endif
 
 endfunction
 
@@ -990,119 +998,179 @@ endfunction
 " ----------------------------------------------
 " Character conversion
 
-function! VimclairChars()
+function! VimclairBASinChars2BAS2TAP()
 
-  " Convert special characters
+  " Convert characters from BASin format to BAS2TAP format
+
+  " Block graphics (chars 128-143)
+
+  silent! %s@\\  @{80}@ge
+  silent! %s@\\ '@{81}@ge
+  silent! %s@\\' @{82}@ge
+  silent! %s@\\''@{83}@ge
+  silent! %s@\\ \.@{84}@ge
+  silent! %s@\\ :@{85}@ge
+  silent! %s@\\'\.@{86}@ge
+  silent! %s@\\':@{87}@ge
+  silent! %s@\\\. @{88}@ge
+  silent! %s@\\\.'@{89}@ge
+  silent! %s@\\: @{8A}@ge
+  silent! %s@\\:'@{8B}@ge
+  silent! %s@\\\.\.@{8C}@ge
+  silent! %s@\\\.:@{8D}@ge
+  silent! %s@\\:\.@{8E}@ge
+  silent! %s@\\::@{8F}@ge
+
+  " UDG (chars 144-164)
+
+  silent! %s@\\[Aa]@{A}@ge
+  silent! %s@\\[Bb]@{B}@ge
+  silent! %s@\\[Cc]@{C}@ge
+  silent! %s@\\[Dd]@{D}@ge
+  silent! %s@\\[Ee]@{E}@ge
+  silent! %s@\\[Ff]@{F}@ge
+  silent! %s@\\[Gg]@{G}@ge
+  silent! %s@\\[Hh]@{H}@ge
+  silent! %s@\\[Ii]@{I}@ge
+  silent! %s@\\[Jj]@{J}@ge
+  silent! %s@\\[Kk]@{K}@ge
+  silent! %s@\\[Ll]@{L}@ge
+  silent! %s@\\[Mm]@{M}@ge
+  silent! %s@\\[Nn]@{N}@ge
+  silent! %s@\\[Oo]@{O}@ge
+  silent! %s@\\[Pp]@{P}@ge
+  silent! %s@\\[Qq]@{Q}@ge
+  silent! %s@\\[Rr]@{R}@ge
+  silent! %s@\\[Ss]@{S}@ge
+  silent! %s@\\[Tt]@{T}@ge
+  silent! %s@\\[Uu]@{U}@ge
+
+  " Embedded attributes
+  " Note: combined chars (e.g. "\{p7i2b0}") are not converted
+
+  silent! %s@\\{vn}@{INVERSE 0}@ge
+  silent! %s@\\{vi}@{INVERSE 1}@ge
+  silent! %s@\\{f\([01]\)}@{FLASH \1}@ge
+  silent! %s@\\{b\([01]\)}@{BRIGHT \1}@ge
+  silent! %s@\\{p\([0-9]\)}@{PAPER \1}@ge
+  silent! %s@\\{i\([0-9]\)}@{INK \1}@ge
+
+  " Embedded chars
+
+  silent! %s/\\#\(\d\+\)/\=nr2char(submatch(1))/g
+
+endfunction
+  
+function! VimclairBASinChars2zmakebas()
+
+  " Convert BASin characters to zmakebas
+ 
+  " zmakebas already supports the BASin notation for UDG and
+  " block graphics characters
+  
+  " Embedded attributes:
+  " Note: combined chars (e.g. "\{p7i2b0}") are not converted
+
+  silent! %s@\\{vn}@\\{20}\\{0}@ge
+  silent! %s@\\{vi}@\\{20}\\{1}@ge
+  silent! %s@\\{f\([01]\)}@\\{18}\\{\1}@ge
+  silent! %s@\\{b\([01]\)}@\\{19}\\{\1}@ge
+  silent! %s@\\{p\([0-9]\)}@\\{17}\\{\1}@ge
+  silent! %s@\\{i\([0-9]\)}@\\{16}\\{\1}@ge
+
+  " Embedded chars: 
+
+  silent! %s@\\#\(\d\+\)@\\{\1}@g
+
+endfunction
+
+function! VimclairBASinChars()
+
+  " Convert BASin characters
+  " to the format of the selected TAP maker
 
   let l:ignoreCaseBackup=&ignorecase
   set noignorecase
 
-  " Convert BASin format characters
-
   if s:tapmaker=='zmakebas'
-
-    " Convert characters from BASin format to zmakebas format
-    
-    " zmakebas already supports the BASin notation for UDG and
-    " block graphics characters
-    
-    " Embedded attributes:
-    silent! %s@\\{vn}@\\{20}\\{0}@ge
-    silent! %s@\\{vi}@\\{20}\\{1}@ge
-    silent! %s@\\{f\([01]\)}@\\{18}\\{\1}@ge
-    silent! %s@\\{b\([01]\)}@\\{19}\\{\1}@ge
-    silent! %s@\\{p\([0-9]\)}@\\{17}\\{\1}@ge
-    silent! %s@\\{i\([0-9]\)}@\\{16}\\{\1}@ge
-
-    " Embedded chars: 
-    silent! %s@\\#\(\d\+\)@\\{\1}@g
-
+    call VimclairBASinChars2zmakebas()
+    echo 'Special chars converted to zmakebas format'
   elseif s:tapmaker=='bas2tap'
-
-    " Convert characters from BASin format to BAS2TAP format
-
-    " Block graphics (chars 128-143)
-
-    silent! %s@\\  @{80}@ge
-    silent! %s@\\ '@{81}@ge
-    silent! %s@\\' @{82}@ge
-    silent! %s@\\''@{83}@ge
-    silent! %s@\\ \.@{84}@ge
-    silent! %s@\\ :@{85}@ge
-    silent! %s@\\'\.@{86}@ge
-    silent! %s@\\':@{87}@ge
-    silent! %s@\\\. @{88}@ge
-    silent! %s@\\\.'@{89}@ge
-    silent! %s@\\: @{8A}@ge
-    silent! %s@\\:'@{8B}@ge
-    silent! %s@\\\.\.@{8C}@ge
-    silent! %s@\\\.:@{8D}@ge
-    silent! %s@\\:\.@{8E}@ge
-    silent! %s@\\::@{8F}@ge
-
-    " UDG (chars 144-164)
-
-    silent! %s@\\[Aa]@{A}@ge
-    silent! %s@\\[Bb]@{B}@ge
-    silent! %s@\\[Cc]@{C}@ge
-    silent! %s@\\[Dd]@{D}@ge
-    silent! %s@\\[Ee]@{E}@ge
-    silent! %s@\\[Ff]@{F}@ge
-    silent! %s@\\[Gg]@{G}@ge
-    silent! %s@\\[Hh]@{H}@ge
-    silent! %s@\\[Ii]@{I}@ge
-    silent! %s@\\[Jj]@{J}@ge
-    silent! %s@\\[Kk]@{K}@ge
-    silent! %s@\\[Ll]@{L}@ge
-    silent! %s@\\[Mm]@{M}@ge
-    silent! %s@\\[Nn]@{N}@ge
-    silent! %s@\\[Oo]@{O}@ge
-    silent! %s@\\[Pp]@{P}@ge
-    silent! %s@\\[Qq]@{Q}@ge
-    silent! %s@\\[Rr]@{R}@ge
-    silent! %s@\\[Ss]@{S}@ge
-    silent! %s@\\[Tt]@{T}@ge
-    silent! %s@\\[Uu]@{U}@ge
-
-    " Embedded attributes
-    " Note: combined chars (e.g. "\{p7i2b0}") are not converted
-
-    silent! %s@\\{vn}@{INVERSE 0}@ge
-    silent! %s@\\{vi}@{INVERSE 1}@ge
-    silent! %s@\\{f\([01]\)}@{FLASH \1}@ge
-    silent! %s@\\{b\([01]\)}@{BRIGHT \1}@ge
-    silent! %s@\\{p\([0-9]\)}@{PAPER \1}@ge
-    silent! %s@\\{i\([0-9]\)}@{INK \1}@ge
-
-    " Embedded chars
-
-    silent! %s/\\#\(\d\+\)/\=nr2char(submatch(1))/g
-
+    call VimclairBASinChars2BAS2TAP()
+    echo 'Special chars converted to BAS2TAP format'
   endif
   
   call VimclairSaveStep('special_chars_converted')
-
-  echo 'Special chars converted'
 
   let &ignorecase=l:ignoreCaseBackup
 
 endfunction
 
+function! VimclairByte2Char(byte)
+
+  " Convert the given byte to a string
+  " in the format of the selected TAP maker.
+
+  if s:tapmaker=='zmakebas'
+    return '\{'.a:byte.'}'
+
+  elseif s:tapmaker=='bas2tap'
+    return '{'.strpart(printf('%04x',a:byte),2,2).'}'
+
+  endif
+
+endfunction
+
+function! VimclairAddress2Chars(number)
+
+  " Convert the given 16-bit number to a string of two bytes
+  " in the format of the selected TAP maker.
+
+  echo 'VimclairAddress2Chars(' a:number ')'
+  if a:number>65535
+    " XXX TODO better
+    echoerr 'Invalid 16-bit number: ' a:number
+  else
+    let l:highByte=a:number/256
+    let l:lowByte=a:number-256*l:highByte
+    return VimclairByte2Char(l:lowByte).VimclairByte2Char(l:highByte)
+  endif
+
+endfunction 
+
 function! VimclairAddresses2Chars()
 
   " Convert 16-bit embedded values into two embedded bytes
+  " with the format of the selected TAP maker.
+  " 
+  " Vimclair BASIC uses double curly brackets for 16-bit
+  " embedded values, in decimal or hex. Example:
+  "
+  "   let a$="{{0xFFFF}}{{2048}}"
 
-  " XXX TODO
+  %substitute@{{\([0-9]\{-}\)}}@\=VimclairAddress2Chars(submatch(1))@ge
+  %substitute@{{0x\([0-9A-Fa-f]\{-}\)}}@\=VimclairAddress2Chars(str2nr(submatch(1),16))@ge
 
-  while search('\\{[0-9]}','Wc')
-  endwhile
+endfunction
+
+function! VimclairChars()
+
+  " Convert all special chars
+
+  " XXX TODO convert also the BAS2TAP notation to zmakebas
+  " XXX TODO convert also the zmakebas notation to BAS2TAP
+
+  if !empty(s:tapmaker)
+    call VimclairAddresses2Chars()
+    call VimclairBASinChars()
+  endif
 
 endfunction
 
 " ----------------------------------------------
 " BAS file
 
-function! VimclairBasfile()
+function! VimclairBasFile()
 
   " Create a copy of the current Vimclair BASIC file
   " with the .bas extension added
@@ -1126,7 +1194,9 @@ function! VimclairBasfile()
 
 endfunction
 
-function! VimclairBAS2TAP()
+function! VimclairTapFileWithBAS2TAP()
+
+  " Convert the final BAS file to a TAP file, using BAS2TAP.
 
   "   BAS2TAP v2.4 by Martijn van der Heide of ThunderWare Research Center
   "   
@@ -1140,13 +1210,16 @@ function! VimclairBAS2TAP()
   "          -s = set "filename" in BASIC header
 
   " XXX TODO check if bas2tap is installed
-  " XXX TODO config with more directives
+  " XXX TODO config with more directives?
+
   let s:autorun=s:runLine ? ' -a'.s:runLine : ''
   silent! execute '!bas2tap -c -n'.s:autorun.' -s'.s:zxFilename.' '.s:basFilename.' '.s:tapFilename
 
 endfunction
 
-function! VimclairZmakebas()
+function! VimclairTapFileWithZmakebas()
+
+  " Convert the final BAS file to a TAP file, using zmakebas.
 
   " zmakebas 1.2 (by Russell Marks, 2004-05)
   " 
@@ -1180,6 +1253,7 @@ function! VimclairZmakebas()
   " -s : in labels mode, set starting line number (default 10).
 
   " XXX TODO check if zmakebas is installed
+  " XXX TODO config with more directives?
 
   let s:autorun=s:runLine ? ' -a '.s:runLine : ''
   silent! execute '!zmakebas '.s:autorun.' -n '.s:zxFilename.' -o 's:tapFilename.' '.s:basFilename
@@ -1187,15 +1261,19 @@ function! VimclairZmakebas()
 endfunction
 
 function! VimclairTapFile()
-  let s:tapFilename=expand('%:r').'.tap'
-  echo "\n"
-  if s:tapmaker=='zmakebas'
-    call VimclairZmakebas()
-  elseif s:tapmaker=='bas2tap'
-    call VimclairBAS2TAP()
-  else
-    echoerr 'Unknown TAP maker: the TAP file was not created'
+
+  " Convert the final BAS file to a TAP file.
+
+  if s:validTAPMaker
+    let s:tapFilename=expand('%:r').'.tap'
+    echo "\n"
+    if s:tapmaker=='zmakebas'
+      call VimclairTapFileWithZmakebas()
+    elseif s:tapmaker=='bas2tap'
+      call VimclairTapFileWithBAS2TAP()
+    endif
   endif
+
 endfunction
 
 " ----------------------------------------------
@@ -1276,7 +1354,7 @@ function! Vbas2tap()
   echo "\n"
 
   " Conversion steps
-  call VimclairBasfile()
+  call VimclairBasFile()
   call VimclairInclude()
   call VimclairConfig()
   call VimclairConditionalConversion()
@@ -1304,17 +1382,5 @@ function! Vbas2tap()
   let &shortmess=s:shortmessBackup
 
 endfunction
-
-echo "hola"
-echo "hola"
-echo "hola"
-echo "hola"
-echo "hola"
-echo "hola"
-echo "hola"
-echo "hola"
-echo "hola"
-echo "hola"
-echo "hola"
 
 " vim:tw=64:ts=2:sts=2:sw=2:et
