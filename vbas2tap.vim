@@ -1,7 +1,7 @@
 " vbas2tap.vim
 
 " vbas2tap
-let s:version='A-07-20150228'
+let s:version='A-09-20150315'
 
 " This file is part of Vimclair BASIC
 " http://programandala.net/en.program.vimclair_basic.html
@@ -495,23 +495,33 @@ endfunction
 
 function! VimclairVim()
 
-  " Execute all #vim metacommands.
+  " Execute all #vim directives.
 
   " Syntax:
   " #vim Any-Vim-Ex-Command
 
   call cursor(1,1) " Go to the top of the file.
   let l:vimCommands=0 " Counter
+
   while search('^\s*#vim\s','Wc')
+
     let l:vimCommands += 1
     let l:vimCommandLine = line('.')
     let l:vimCommand=matchstr(getline(l:vimCommandLine),'\S\+.*',4)
+
+    " Blank the line that contained the command before executing
+    " it, because a command could modify itself in such a way
+    " that its line would be splitted, what would be a problem
+    " later:
+    call setline('.','')
+
     " XXX TODO make 'silent' configurable
     " XXX with 'silent', wrong regexp in substitutions are hard to notice!
     execute 'silent! '.l:vimCommand
     " execute l:vimCommand
+
     call cursor(l:vimCommandLine,1) " Return to the command line.
-    call setline('.','') " Blank the line.
+
   endwhile
 
   silent! %s/^\n//e " Remove the empty lines
@@ -688,8 +698,8 @@ function! VimclairConfig()
   call VimclairRenumLine()
   " #procedureCall <keyword>
   call VimclairProcedureCall()
-  " #runLabel <label>
-  call VimclairRunLabel()
+  " #run <label or line number>
+  call VimclairRun()
   " #define <tag>
   call VimclairDefine()
   " #filename <filename>
@@ -743,25 +753,47 @@ function! VimclairProcedureCall()
 
 endfunction
 
-function! VimclairRunLabel()
+function! VimclairRun()
 
   " Config the auto-run line number.
 
-  " The command '#runLabel' can be used to set the desired label. Only the
-  " first occurence of '#runLabel' will be used; it can be anywhere in the
-  " source but always at the start of a line (with optional indentation).
+  " The command '#run' can be used to set the desired line
+  " number or label. Only the first occurence of '#run' will be
+  " used; it can be anywhere in the source but always at the
+  " start of a line (with optional indentation).
 
-  let s:runLabel='' " default value (no auto-run)
+  let s:run='' " default value (no auto-run)
   call cursor(1,1) " Go to the top of the file.
-  if search('^\s*#runLabel\>','Wc')
-    let l:valuePos=matchend(getline('.'),'^\s*#runLabel\s*')
-    let s:runLabel=strpart(getline('.'),l:valuePos)
+  if search('^\s*#run\>','Wc')
+    let l:valuePos=matchend(getline('.'),'^\s*#run\s*')
+    let s:run=strpart(getline('.'),l:valuePos)
     call setline('.','')
   endif
 
-  echo empty(s:runLabel) ? 'No auto-run' : 'Auto-run label: '.s:runLabel
+  echo empty(s:run) ? 'No auto-run' : 'Auto-run: '.s:run
 
 endfunction
+
+" XXX OLD
+" function! VimclairRunLabel()
+
+"   " Config the auto-run line number.
+
+"   " The command '#runLabel' can be used to set the desired label. Only the
+"   " first occurence of '#runLabel' will be used; it can be anywhere in the
+"   " source but always at the start of a line (with optional indentation).
+
+"   let s:runLabel='' " default value (no auto-run)
+"   call cursor(1,1) " Go to the top of the file.
+"   if search('^\s*#runLabel\>','Wc')
+"     let l:valuePos=matchend(getline('.'),'^\s*#runLabel\s*')
+"     let s:runLabel=strpart(getline('.'),l:valuePos)
+"     call setline('.','')
+"   endif
+
+"   echo empty(s:runLabel) ? 'No auto-run' : 'Auto-run label: '.s:runLabel
+
+" endfunction
 
 function! VimclairDefine()
 
@@ -847,8 +879,7 @@ function! VimclairTAPMaker()
   " used; it can be anywhere in the source but always at the
   " start of a line (with optional indentation).
 
-  " Default 
-  let s:tapmaker='bas2tap'
+  let s:tapmaker=''
   
   call cursor(1,1) " Go to the top of the file.
   if search('^\s*#tapmaker\>','Wc')
@@ -859,11 +890,13 @@ function! VimclairTAPMaker()
 
   let s:validTAPMaker=(match(['bas2tap','zmakebas'],s:tapmaker)!=-1)
   if empty(s:tapmaker)
-    echo 'No BAS to TAP converter specified: No TAP will be created'
+    echo 'No BAS to TAP converter specified'
+    echo 'No TAP file will be created'
   elseif s:validTAPMaker
     echo 'BAS to TAP converter: '.s:tapmaker
   else
-    echo 'Unknown BAS to TAP converter: '.s:tapmaker
+    echo 'Unknown BAS to TAP converter specified: '.s:tapmaker
+    echo 'No TAP file will be created'
     let s:tapmaker=''
   endif
 
@@ -939,8 +972,12 @@ function! VimclairLabels()
   endfor
 
   let s:runLine=0 " default: no auto-run
-  if !empty(s:runLabel) 
-    let s:runLine=l:lineNumber[s:runLabel]
+  if has_key(l:lineNumber,s:run)
+    " it's a label
+    let s:runLine=l:lineNumber[s:run]
+  else
+    " it's a line number
+    let s:runLine=s:run
   endif
 
   let &ignorecase=l:ignoreCaseBackup
