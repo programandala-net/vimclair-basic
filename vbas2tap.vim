@@ -1,7 +1,7 @@
 " vbas2tap.vim
 
 " vbas2tap
-let s:version='A-09-20150315'
+let s:version='A-09-2015032000'
 
 " This file is part of Vimclair BASIC
 " http://programandala.net/en.program.vimclair_basic.html
@@ -68,14 +68,14 @@ function! VimclairClean()
 
   " Clean the source code.
 
-  " Save the #vim commands XXX OLD
+  " Save the '#vim' directives XXX OLD
 "  let l:mark='vimcommand'.localtime()
 "  execute 'silent! %s/^\s*#vim\>/'.l:mark.'/ei'
 
   " Remove the metacomments
   silent! %s/^\s*#\(\s.*\)\?$//e
 
-  " Restore the #vim commands XXX OLD
+  " Restore the '#vim' directives XXX OLD
 "  execute 'silent! %s/^'.l:mark.'/#vim/e'
 
   silent! %s/\s*\/\/.*$//e " Remove the // line comments
@@ -448,12 +448,12 @@ function! VimclairProcedures()
   " space is optional: 'DEFPROC', 'ENDPROC' and 'EXITPROC' are valid.  'EXIT
   " PROC' must be at the end of the line.  'CALL' must be used to call a
   " procedure, but it can be changed to anything (e.g. 'PROC', or even an
-  " empty string) with '#procedureCall'.
+  " empty string) with the '#procedureCall' directive.
 
   " Description:
 
-  " Procedures are simulated with ordinary routines. No parameters are allowed
-  " yet. Procedures with parameters can be simulated with the #vim directive.
+  " Procedures are simulated with ordinary routines. No parameters are allowed.
+  " Procedures with parameters can be simulated with the '#vim' directive.
 
   let s:doStatement=''
 
@@ -493,9 +493,13 @@ endfunction
 " ----------------------------------------------
 " Metacommands
 
-function! VimclairVim()
+function! EXVimclairVim()
 
-  " Execute all #vim directives.
+  " XXX OLD -- first version
+  " Every directive is executed when it's found.
+  " This is risky, because one directive could corrupt others.
+
+  " Execute all '#vim' directives.
 
   " Syntax:
   " #vim Any-Vim-Ex-Command
@@ -535,12 +539,70 @@ function! VimclairVim()
   endif
 
   call VimclairSaveStep('vim_commands')
-  
+
 endfunction
+
+function! VimclairVim()
+
+  " Search for '#vim' directives and execute their Vim commands.
+  "
+  " XXX FIXME This new version has a problem:
+  " Sometimes it's useful to modify '#vim' directives with
+  " another '#vim' directive.
+  " Possible solution: execute '#previm' first.
+
+  " Syntax:
+  " #vim Any-Vim-Ex-Command
+
+  call cursor(1,1) " Go to the top of the file.
+
+  " Empty dictionary to store the Vim commands;
+  " their line number will be used as key:
+  let l:vimDirective={}
+
+  " Get all '#vim' directives
+
+  while search('^\s*#vim\s','Wc')
+
+    " XXX FIXME the expression of matchstr() doesn't match that
+    " of search():
+    let l:vimCommand=matchstr(getline(line('.')),'\S\+.*',4)
+    let l:vimDirective[line('.')]=l:vimCommand
+    call setline('.','') " blank the line
+
+  endwhile
+
+  if len(l:vimDirective)
+
+    " Execute all Vim commands
+
+    for l:line in sort(keys(l:vimDirective))
+
+      call cursor(l:line,1)
+      " XXX TODO make 'silent' configurable
+      " XXX with 'silent', wrong regexp in substitutions are hard to notice!
+      execute 'silent! '.l:vimDirective[l:line]
+
+    endfor
+
+    silent! %s/^\n//e " Remove the empty lines
+
+    if len(l:vimDirective)==1
+      echo 'One #vim directive executed'
+    else
+      echo len(l:vimDirective) '#vim directives executed'
+    endif
+
+  endif
+
+  call VimclairSaveStep('vim_commands')
+
+endfunction
+
 
 function! VimclairInclude()
 
-  " Execute all #include commands in the source.
+  " Execute all '#include' directives.
 
   " Syntax:
   " #include file-name
@@ -691,7 +753,7 @@ endfunction
 
 function! VimclairConfig()
 
-  " Search and parse the config commands.  They can be anywhere in the source
+  " Search and parse the config directives.  They can be anywhere in the source
   " but always at the start of a line (with optional indentation).
 
   " #renumLine <line number>
@@ -849,7 +911,7 @@ function! VimclairZXFilename()
   " name of the Vimclair BASIC source file, but without the filename
   " extension.
 
-  " The command '#filename' can be used to set the desired filename. Only the
+  " The '#filename' directive can be used to set the desired filename. Only the
   " first occurence of '#filename' will be used; it can be anywhere in the
   " source but always at the start of a line (with optional indentation).
 
