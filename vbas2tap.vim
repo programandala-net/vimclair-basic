@@ -38,29 +38,32 @@ let s:version='A-09-2015032000'
 
 " In order to convert the sources to a TAP file, this program
 " needs either BAS2TAP or zmakebas (the '#tapmaker' directive is
-" used to choose one of them; if empty, no TAP will be created).
+" used to choose one of them; if the '#tapmarke' directive is
+" empty or missing, no TAP will be created, but only the BAS
+" file).
 
 " ..............................
-" BAS2TAP (by Martijn van der Heide of ThunderWare Research
-" Center)
-"
-" At the time of writing (2015-03), its latest version (v2.4, release
-" 2005-07-24), can be obtained from the utilities section of
-" World of Spectrum (http://www.worldofspectrum.org/); or you
-" can try <ftp://ftp.worldofspectrum.org/pub/sinclair/tools/pc>.
-"
-" This is how I compiled and installed BAS2TAP on Debian:
-"
+" BAS2TAP (by Martijn van der Heide)
+
+" At the time of writing (2015-03), its latest version (v2.4,
+" release 2005-07-24), can be obtained from the utilities
+" section of World of Spectrum
+" (http://www.worldofspectrum.org/); or you can try
+" <ftp://ftp.worldofspectrum.org/pub/sinclair/tools/pc>.
+
+" This is how I compiled and installed BAS2TAP on
+" Raspbian and Debian:
+
 "    gcc -Wall -O2 bas2tap.c -o bas2tap -lm
 "    strip bas2tap
 "    sudo mv bas2tap /usr/local/bin/
 
 " ..............................
 " zmakebas (by Russel Marks)
-"
-" At the time of writing (2015-03), its latest version (1.2, release 2004)
-" is a package of Debian, Raspbian, Ubuntu and probably other
-" distros.
+
+" At the time of writing (2015-03), its latest version (1.2,
+" release 2004) is a package of Debian, Raspbian, Ubuntu and
+" probably other distros.
 
 " ----------------------------------------------
 
@@ -538,19 +541,122 @@ function! EXVimclairVim()
     echo l:vimCommands 'Vim commands executed'
   endif
 
-  call VimclairSaveStep('vim_commands')
+  call VimclairSaveStep('vim_directives')
 
 endfunction
 
-function! VimclairVim()
+function! VimclairDoVim(prefix)
+
+  " Search for '#vim' or '#previm' directives, depending on the argument,
+  " and execute their Vim commands.
+  "
+  " Syntax:
+  " #vim Any-Vim-Ex-Command
+  " #previm Any-Vim-Ex-Command
+
+  call cursor(1,1) " Go to the top of the file.
+
+  " Empty dictionary to store the Vim commands;
+  " their line number will be used as key:
+  let l:command={}
+
+  " Search for all directives and store their line numbers and
+  " Vim commands
+
+  let l:directiveExpr='^\s*#'.a:prefix.'vim\s\+'
+  while search(l:directiveExpr,'Wc')
+    let l:line=getline(line('.'))
+    let l:command[line('.')]=strpart(l:line,matchend(l:line,l:directiveExpr))
+    call setline('.','') " blank the line
+  endwhile
+
+  if len(l:command)
+
+    " Execute all Vim commands
+
+    for l:line in sort(keys(l:command))
+      call cursor(l:line,1)
+      " XXX TODO make 'silent' configurable
+      " XXX with 'silent', wrong regexp in substitutions are hard to notice!
+      echo l:command[l:line]
+      execute 'silent! '.l:command[l:line]
+    endfor
+
+    silent! %s/^\n//e " Remove the empty lines
+
+    if len(l:command)==1
+      echo 'One #'.a:prefix.'vim directive executed'
+    else
+      echo len(l:command) '#'.a:prefix.'vim directives executed'
+    endif
+
+  endif
+
+  call VimclairSaveStep('previm_directives')
+
+endfunction
+
+
+function! EXVimclairPrevim()
+
+  " XXX OLD
+
+  " Search for '#previm' directives and execute their Vim commands.
+  "
+  " Syntax:
+  " #previm Any-Vim-Ex-Command
+
+  call cursor(1,1) " Go to the top of the file.
+
+  " Empty dictionary to store the Vim commands;
+  " their line number will be used as key:
+  let l:previmDirective={}
+
+  " Get all '#previm' directives
+
+  while search('^\s*#previm\s','Wc')
+
+    " XXX FIXME the expression of matchstr() doesn't match that
+    " of search():
+    let l:previmCommand=matchstr(getline(line('.')),'\S\+.*',8)
+    let l:previmDirective[line('.')]=l:previmCommand
+    call setline('.','') " blank the line
+
+  endwhile
+
+  if len(l:previmDirective)
+
+    " Execute all Vim commands
+
+    for l:line in sort(keys(l:previmDirective))
+
+      call cursor(l:line,1)
+      " XXX TODO make 'silent' configurable
+      " XXX with 'silent', wrong regexp in substitutions are hard to notice!
+      execute 'silent! '.l:previmDirective[l:line]
+
+    endfor
+
+    silent! %s/^\n//e " Remove the empty lines
+
+    if len(l:previmDirective)==1
+      echo 'One #previm directive executed'
+    else
+      echo len(l:previmDirective) '#previm directives executed'
+    endif
+
+  endif
+
+  call VimclairSaveStep('previm_directives')
+
+endfunction
+
+function! EXVimclairVim()
+
+  " XXX OLD
 
   " Search for '#vim' directives and execute their Vim commands.
   "
-  " XXX FIXME This new version has a problem:
-  " Sometimes it's useful to modify '#vim' directives with
-  " another '#vim' directive.
-  " Possible solution: execute '#previm' first.
-
   " Syntax:
   " #vim Any-Vim-Ex-Command
 
@@ -595,10 +701,19 @@ function! VimclairVim()
 
   endif
 
-  call VimclairSaveStep('vim_commands')
+  call VimclairSaveStep('vim_directives')
 
 endfunction
 
+function! VimclairVim()
+
+  " Search for all '#previm' and '#vim' directives and execute
+  " their Vim commands.
+
+  call VimclairDoVim('pre')
+  call VimclairDoVim('')
+
+endfunction
 
 function! VimclairInclude()
 
