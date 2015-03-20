@@ -1,7 +1,7 @@
 " vbas2tap.vim
 
 " vbas2tap
-let s:version='A-09-201503201811'
+let s:version='A-10-201503201900'
 
 " This file is part of Vimclair BASIC
 " http://programandala.net/en.program.vimclair_basic.html
@@ -496,55 +496,6 @@ endfunction
 " ----------------------------------------------
 " Metacommands
 
-function! EXVimclairVim()
-
-  " XXX OLD -- first version
-  " Every directive is executed when it's found.
-  " This is risky, because one directive could corrupt others.
-
-  " Execute all '#vim' directives.
-
-  " Syntax:
-  " #vim Any-Vim-Ex-Command
-
-  call cursor(1,1) " Go to the top of the file.
-  let l:vimCommands=0 " Counter
-
-  while search('^\s*#vim\s','Wc')
-
-    let l:vimCommands += 1
-    let l:vimCommandLine = line('.')
-    let l:vimCommand=matchstr(getline(l:vimCommandLine),'\S\+.*',4)
-
-    " Blank the line that contained the command before executing
-    " it, because a command could modify itself in such a way
-    " that its line would be splitted, what would be a problem
-    " later:
-    call setline('.','')
-
-    " XXX TODO make 'silent' configurable
-    " XXX with 'silent', wrong regexp in substitutions are hard to notice!
-    execute 'silent! '.l:vimCommand
-    " execute l:vimCommand
-
-    call cursor(l:vimCommandLine,1) " Return to the command line.
-
-  endwhile
-
-  silent! %s/^\n//e " Remove the empty lines
-
-  if l:vimCommands==0
-    echo 'No Vim command found'
-  elseif l:vimCommands==1
-    echo 'One Vim command executed'
-  else
-    echo l:vimCommands 'Vim commands executed'
-  endif
-
-  call VimclairSaveStep('vim_directives')
-
-endfunction
-
 function! VimclairDoVim(directive)
 
   " Search for '#vim' or '#previm' directives, depending on the argument,
@@ -556,8 +507,8 @@ function! VimclairDoVim(directive)
 
   call cursor(1,1) " Go to the top of the file.
 
-  " Empty dictionary to store the Vim commands;
-  " their line number will be used as key:
+  " Empty dictionary to store the Vim commands; their line
+  " number, padded with zeroes, will be used as key:
   let l:command={}
 
   " Search for all directives and store their line numbers and
@@ -591,115 +542,6 @@ function! VimclairDoVim(directive)
   endif
 
   call VimclairSaveStep(strpart(a:directive,1).'_directives')
-
-endfunction
-
-
-function! EXVimclairPrevim()
-
-  " XXX OLD
-
-  " Search for '#previm' directives and execute their Vim commands.
-  "
-  " Syntax:
-  " #previm Any-Vim-Ex-Command
-
-  call cursor(1,1) " Go to the top of the file.
-
-  " Empty dictionary to store the Vim commands;
-  " their line number will be used as key:
-  let l:previmDirective={}
-
-  " Get all '#previm' directives
-
-  while search('^\s*#previm\s','Wc')
-
-    " XXX FIXME the expression of matchstr() doesn't match that
-    " of search():
-    let l:previmCommand=matchstr(getline(line('.')),'\S\+.*',8)
-    let l:previmDirective[line('.')]=l:previmCommand
-    call setline('.','') " blank the line
-
-  endwhile
-
-  if len(l:previmDirective)
-
-    " Execute all Vim commands
-
-    for l:line in sort(keys(l:previmDirective))
-
-      call cursor(l:line,1)
-      " XXX TODO make 'silent' configurable
-      " XXX with 'silent', wrong regexp in substitutions are hard to notice!
-      execute 'silent! '.l:previmDirective[l:line]
-
-    endfor
-
-    silent! %s/^\n//e " Remove the empty lines
-
-    if len(l:previmDirective)==1
-      echo 'One #previm directive executed'
-    else
-      echo len(l:previmDirective) '#previm directives executed'
-    endif
-
-  endif
-
-  call VimclairSaveStep('previm_directives')
-
-endfunction
-
-function! EXVimclairVim()
-
-  " XXX OLD
-
-  " Search for '#vim' directives and execute their Vim commands.
-  "
-  " Syntax:
-  " #vim Any-Vim-Ex-Command
-
-  call cursor(1,1) " Go to the top of the file.
-
-  " Empty dictionary to store the Vim commands;
-  " their line number will be used as key:
-  let l:vimDirective={}
-
-  " Get all '#vim' directives
-
-  while search('^\s*#vim\s','Wc')
-
-    " XXX FIXME the expression of matchstr() doesn't match that
-    " of search():
-    let l:vimCommand=matchstr(getline(line('.')),'\S\+.*',4)
-    let l:vimDirective[line('.')]=l:vimCommand
-    call setline('.','') " blank the line
-
-  endwhile
-
-  if len(l:vimDirective)
-
-    " Execute all Vim commands
-
-    for l:line in sort(keys(l:vimDirective))
-
-      call cursor(l:line,1)
-      " XXX TODO make 'silent' configurable
-      " XXX with 'silent', wrong regexp in substitutions are hard to notice!
-      execute 'silent! '.l:vimDirective[l:line]
-
-    endfor
-
-    silent! %s/^\n//e " Remove the empty lines
-
-    if len(l:vimDirective)==1
-      echo 'One #vim directive executed'
-    else
-      echo len(l:vimDirective) '#vim directives executed'
-    endif
-
-  endif
-
-  call VimclairSaveStep('vim_directives')
 
 endfunction
 
