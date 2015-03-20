@@ -1,7 +1,7 @@
 " vbas2tap.vim
 
 " vbas2tap
-let s:version='A-09-2015032000'
+let s:version='A-09-201503201811'
 
 " This file is part of Vimclair BASIC
 " http://programandala.net/en.program.vimclair_basic.html
@@ -545,14 +545,14 @@ function! EXVimclairVim()
 
 endfunction
 
-function! VimclairDoVim(prefix)
+function! VimclairDoVim(directive)
 
   " Search for '#vim' or '#previm' directives, depending on the argument,
   " and execute their Vim commands.
   "
   " Syntax:
-  " #vim Any-Vim-Ex-Command
   " #previm Any-Vim-Ex-Command
+  " #vim Any-Vim-Ex-Command
 
   call cursor(1,1) " Go to the top of the file.
 
@@ -563,10 +563,11 @@ function! VimclairDoVim(prefix)
   " Search for all directives and store their line numbers and
   " Vim commands
 
-  let l:directiveExpr='^\s*#'.a:prefix.'vim\s\+'
+  let l:directiveExpr='^\s*'.a:directive.'\s\+'
   while search(l:directiveExpr,'Wc')
+    let l:key=matchstr('00000000'.string(line('.')),'.\{8}$')
     let l:line=getline(line('.'))
-    let l:command[line('.')]=strpart(l:line,matchend(l:line,l:directiveExpr))
+    let l:command[l:key]=strpart(l:line,matchend(l:line,l:directiveExpr))
     call setline('.','') " blank the line
   endwhile
 
@@ -574,25 +575,22 @@ function! VimclairDoVim(prefix)
 
     " Execute all Vim commands
 
-    for l:line in sort(keys(l:command))
-      call cursor(l:line,1)
+    for l:key in sort(keys(l:command))
+      call cursor(str2nr(l:key),1)
       " XXX TODO make 'silent' configurable
       " XXX with 'silent', wrong regexp in substitutions are hard to notice!
-      echo l:command[l:line]
-      execute 'silent! '.l:command[l:line]
+      execute 'silent! '.l:command[l:key]
     endfor
 
-    silent! %s/^\n//e " Remove the empty lines
-
     if len(l:command)==1
-      echo 'One #'.a:prefix.'vim directive executed'
+      echo "One '".a:directive."' directive executed'"
     else
-      echo len(l:command) '#'.a:prefix.'vim directives executed'
+      echo len(l:command)." '".a:directive."' vim directives executed"
     endif
 
   endif
 
-  call VimclairSaveStep('previm_directives')
+  call VimclairSaveStep(strpart(a:directive,1).'_directives')
 
 endfunction
 
@@ -710,8 +708,15 @@ function! VimclairVim()
   " Search for all '#previm' and '#vim' directives and execute
   " their Vim commands.
 
-  call VimclairDoVim('pre')
-  call VimclairDoVim('')
+  call VimclairDoVim('#previm')
+  call VimclairDoVim('#vim')
+
+  " Remove the empty lines (this is not done also after
+  " executing the '#previm' directives , in order to help
+  " comparing the position of the directives in both steps file,
+  " if needed for debugging; besides, it would be of no use):
+
+  silent! %s/^\n//e
 
 endfunction
 
