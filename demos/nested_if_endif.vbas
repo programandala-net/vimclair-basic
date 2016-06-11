@@ -1,0 +1,20 @@
+// Vimclair BASIC demo
+// Nested IF ENDIF structures
+// 2014-12-13
+cls
+input "a=";a
+input "b=";b
+input "c=";c
+if a then
+  print "A<>0"
+else if b then
+  print "B<>0"
+  if c then
+    print "C<>0"
+  else
+    print "C=0"
+  endif
+else
+  print "A=0"
+endif
+stop

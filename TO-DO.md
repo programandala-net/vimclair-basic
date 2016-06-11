@@ -1,0 +1,53 @@
+Vimclair BASIC To-Do List
+=========================
+
+This file is part of
+[Vimclair BASIC](http://programandala.net/en.program.vimclair_basic.html),
+by Marcos Cruz (programandala.net).
+
+Updated: 2015-03-01
+
+To fix
+------
+
+- Chained jumps created by the control structures.
+- Check duplicated labels.
+- Check all identifiers are matched at the start of the
+  line or after a colon; this will prevent some mismatchs in
+  text strings.
+- Label definitions with uppercase letters are not
+  recognized and removed.
+- If a expression starts with a `NOT`, it should be removed
+  instead of adding another `NOT` to it (when loops and
+  conditional are converted to jumps).
+- When '#filename X' is not at the left margin, the datum stored
+  is part of "#filename".
+
+To improve
+----------
+
+- Make `silent` configurable in #vim substitutions.
+- Error message if `#include` file is not found.
+- Now substitions can change ordinary texts. A fixed format is
+  required, e.g. `variable&` or `constant!`...  Why not to use a
+  common format for all variables, and let Vimclair BASIC to do
+  the name translations automatically? The convertor would use
+  the first empty name, from a to z.
+- Parens used by `NOT` to enclose the `WHILE`.
+- `UNTIL` or `IF` expressions could be ommited in certain cases.
+- `gosub X:endproc` --> `goto X` and `gosub X:return` --> `goto
+  X`.
+- Errors should be returned as exit status, in order to make
+  things easier for 'make' and other tools. But how?
+
+To implement
+------------
+
+- Hex numbers.
+- Configuration file?
+- '#quiet' directive
+- Make tracing optional (`#tracing` directive?).
+- Directive for size optimization. Then VAL will be added to line numbers and
+  others (or substituted with INT PI, SGN PI...).
+- Export the labels as Vimclair BASIC #vim directives, in orde
+  to reuse them in related programs.

@@ -1,6 +1,12 @@
-= To-do list of Vimclair BASIC
+= Vimclair BASIC Development To-do List
 :author: Marcos Cruz (programandala.net)
-:revdate: 2015-02-09
+:revdate: 2015-02-11
+
+// This file is part of Vimclair BASIC
+// (http://programandala.net/en.program.vimclair_basic.html).
+// This file is written in AsciiDoc/Asciidoctor format.
+// 
+// The file TO-DO.md contains the public to-do list.
 
 == 2014-08-01
 
@@ -8,6 +14,7 @@ Improve: parens used by `NOT` to enclose the `WHILE`.
 
 Improve: `UNTIL` or `IF` expressions can be ommited in certain cases.
 
+// XXX OLD -- deprecated idea:
 New: `EXIT DO n`, to exit the n-th loop.
 
 Procedures with parameters. Idea:
@@ -73,10 +80,6 @@ format for all variables, and let Vimclair BASIC to do the name
 translations automatically? The convertor would use the first empty
 name, from a$ to z$.
 
-== 2014-08-06
-
-New: #if ... #endif.
-
 == 2014-08-10
 
 Fix: If a expression starts with a `NOT`, it should be removed instead
@@ -94,10 +97,6 @@ Optimize: gosub X:return --> goto X
 == 2014-12-13
 
 Make tracing optional.
-
-== 2014-12-14
-
-Make `#include` and config recursive.
 
 == 2015-02-09
 
@@ -153,4 +152,13 @@ functions:
 "syn keyword vimclairbasicCommand FILL
 ----
 
-New: Hex numbers, both & and 0x notations.
+New: Hex numbers. `&` and `0x` notations?  The `&` notation is used by
+MasterBASIC, but it could be useful for other things, combined with
+`#vim`.  The `0x` notation is unambiguous.
+
+== 2015-02-10
+
+New: configuration file?
+
+New: `#tracing` directive.
+
