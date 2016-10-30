@@ -4,7 +4,7 @@
 " Author:      Marcos Cruz (programandala.net)
 " License:     Vim license (GPL compatible)
 " URL:         http://programandala.net/en.program.vimclair_basic.html
-" Updated:     2015-03-07
+" Updated:     2016-10-30
 
 " -------------------------------------------------------------
 " Change history: see at the end of the file
@@ -221,7 +221,6 @@ if version >= 508 || !exists("did_basic_syntax_inits")
     command -nargs=+ HiLink hi def link <args>
   endif
 
-  HiLink vimclairbasicLineNumber Label
   HiLink vimclairbasicNumber Number
   HiLink vimclairbasicCommand Statement
   HiLink vimclairbasicQualifier Statement
@@ -300,3 +299,5 @@ let b:current_syntax = "vimclairbasic"
 " 2015-03-07: Fix: now 'REM' is highligted also when nothing follows it.
 "
 " 2015-03-19: New: '#previm'.
+"
+" 2016-10-30: Remove unused highlighting.

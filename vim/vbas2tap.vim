@@ -1,7 +1,7 @@
 " vbas2tap.vim
 
 " vbas2tap
-let s:version='A-10-201503201900'
+let s:version='0.11.0+201610302018'
 
 " This file is part of Vimclair BASIC
 " http://programandala.net/en.program.vimclair_basic.html
@@ -949,7 +949,7 @@ function! VimclairLabels()
   " Join every lonely label to its following line
   " (unless its following line has another label definition):
   silent %substitute,^\(@[0-9a-zA-Z_]\+\)\s*:\?\n\([^@]\),\1:\2,ei
-  call VimclairSaveStep('labels-joined')
+  call VimclairSaveStep('labels_joined')
 
   " Create an empty dictionary to store the line numbers of the labels;
   " the labels will be used as keys:
@@ -963,12 +963,12 @@ function! VimclairLabels()
 
     " Store the found label into register 'l':
     normal "l2yw
-    " XXX debug check
+    " XXX INFORMER
 "    echo 'Raw label found: <' . getreg('l',1) . '>'
 "    let l:label=tolower(getreg('l',1))
     let l:label=getreg('l',1)
     let l:labelValue=line('.')+s:renumLine-1
-    " XXX debug check
+    " XXX INFORMER
     "echo '  XXX Clean label: <' . l:label . '> = '.l:labelValue
     " Use the label as the key to its line number:
     let l:lineNumber[l:label]=l:labelValue
@@ -987,10 +987,10 @@ function! VimclairLabels()
     call cursor(1,1) " Go to the top of the file.
     " Do the subtitution:
     while search(l:label.'\>','Wc')
-      " XXX debug check
+      " XXX INFORMER
 "      echo l:label "label reference found"
 "      echo 'About to translate it to ' l:lineNumber[l:label]
-      "execute 'silent! substitute/\<'.l:label.'\>/'.l:lineNumber[l:label].'/ei'
+"      execute 'silent! substitute/'.l:label.'\>/'.l:lineNumber[l:label].'/ei'
       execute 'substitute/'.l:label.'\>/'.l:lineNumber[l:label].'/i'
     endwhile
   endfor
@@ -1008,7 +1008,7 @@ function! VimclairLabels()
 
   echo 'Labels translated'
 
-  call VimclairSaveStep('labels')
+  call VimclairSaveStep('labels_translated')
 
 endfunction
 
