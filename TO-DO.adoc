@@ -1,14 +1,12 @@
-Vimclair BASIC To-Do List
-=========================
+= Vimclair BASIC To-Do List
+:author: Marcos Cruz (programandala.net)
+:revdate: 2016-11-05
 
 This file is part of
-[Vimclair BASIC](http://programandala.net/en.program.vimclair_basic.html),
-by Marcos Cruz (programandala.net).
+http://programandala.net/en.program.vimclair_basic.html[Vimclair
+BASIC], by Marcos Cruz (programandala.net).
 
-Updated: 2015-03-01
-
-To fix
-------
+== To fix
 
 - Chained jumps created by the control structures.
 - Check duplicated labels.
@@ -23,8 +21,7 @@ To fix
 - When '#filename X' is not at the left margin, the datum stored
   is part of "#filename".
 
-To improve
-----------
+== To improve
 
 - Make `silent` configurable in #vim substitutions.
 - Error message if `#include` file is not found.
@@ -40,14 +37,14 @@ To improve
 - Errors should be returned as exit status, in order to make
   things easier for 'make' and other tools. But how?
 
-To implement
-------------
+== To implement
 
 - Hex numbers.
 - Configuration file?
-- '#quiet' directive
+- `#quiet` directive.
 - Make tracing optional (`#tracing` directive?).
-- Directive for size optimization. Then VAL will be added to line numbers and
-  others (or substituted with INT PI, SGN PI...).
-- Export the labels as Vimclair BASIC #vim directives, in orde
-  to reuse them in related programs.
+- Directive for size optimization. Then `VAL` will be added to line
+  numbers and others (or substituted with `INT PI`, `SGN PI`...).
+- Export the labels as Vimclair BASIC `#vim` directives, in order to
+  reuse them in related programs.
+- Write an installer.

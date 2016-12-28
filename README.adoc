@@ -1,0 +1,111 @@
+= Vimclair BASIC
+:author: Marcos Cruz (programandala.net)
+:revdate: 2016-11-05
+
+// http://programandala.net/en.program.vimclair_basic.html[Vimclair BASIC],
+
+== Files
+
+- `README.adoc`: This file.
+- `LICENSE.txt`: The license.
+- `vbas2tap.sh`: Command line wrapper for the Vimclair BASIC to TAP
+  converter.
+
+The `vim/` directory contains Vim specific files:
+
+- `vim/vbas2tap.vim` : Vimclair BASIC to TAP converter.
+- `vim/ftdetect/vimclairbasic.vim` : filetype detect (how Vim knows, by the
+  filename extension, that you are opening a Vimclair BASIC source file).
+- `vim/ftplugin/vimclairbasic.vim` : filetype plugin (configuration and
+  editing preferences for Vimclair BASIC source files).
+- `vim/syntax/vimclairbasic.vim` : syntax highlighting file.
+
+== Requirements
+
+In order to convert the sources to a TAP file, Vimclair BASIC needs
+either BAS2TAP (by Martijn van der Heide) or zmakebas (by Russel
+Marks).  The `#tapmaker` directive is used to choose one of them; if
+the `#tapmaker` directive is empty or missing, no TAP will be created,
+but only the BAS file.
+
+=== BAS2TAP
+
+At the time of writing (2016-11), its latest version (v2.6, release
+2013-01-20), can be obtained from the utilities section of
+http://www.worldofspectrum.org/[World of Spectrum].
+
+This is how I compiled and installed BAS2TAP on
+Raspbian and Debian:
+
+----
+   gcc -Wall -O2 bas2tap.c -o bas2tap -lm
+   strip bas2tap
+   sudo mv bas2tap /usr/local/bin/
+----
+
+=== zmakebas
+
+At the time of writing (2015-03), its latest version (1.2,
+release 2004) is a package of Debian, Raspbian, Ubuntu and
+probably other distros.  Also the sources are easy to find
+(example: https://github.com/catseye/zmakebas).
+
+The original code had a bug: The tokenization of `DEF FN` doesn't
+include the required 5 bytes for each parameter. This made `FN` fail.
+This bug was fixed by Antonio Villena in his own version:
+<http://sourceforge.net/p/emuscriptoria/code/HEAD/tree/desprot/ZMakeBas.c>.
+
+== Installation
+
+Extract the contents of the tar file:
+
+----
+tar xvz vimclair_basic.tar.gz
+----
+
+Enter the new directory:
+
+----
+cd vimclair_basic
+----
+
+Copy the content of the `vim/` directory into your `~/.vim/`
+directory:
+
+----
+cp -r vim/* ~/.vim
+----
+
+Create a link to `vbas2tap.sh` , with your command name of choice
+(e.g. `vbas2tap` ), into a directory in your path (usually
+`~/bin/` or `/usr/local/bin/` ):
+
+----
+ln -s vbas2tap.sh ~/bin/vbas2tap
+----
+
+If you prefer the system-wide `/usr/local/bin/` directory:
+
+----
+sudo ln -s vbas2tap.sh /usr/local/bin/vbas2tap
+----
+
+In the examples above, symbolic links are used. You can create hard links
+instead, copy or even move the file.
+
+== Usage ==
+
+Vimclair BASIC source files use the VBAS filename extension by default, but
+you can change it in `~/.vim/ftdetect/vimclairbasic.vim`.
+
+Whenever you open a Vimclair BASIC program with Vim, the proper syntax
+highlighting will be selected, and the normal-mode key map `.tap`
+(defined in `vim/ftplugin/vimclairbasic.vim` ) will convert your
+source to a TAP file.
+
+You can use also the command line converter from your OS shell:
+
+----
+vbas2tap program.vbas
+----
+

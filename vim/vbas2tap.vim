@@ -1,30 +1,24 @@
 " vbas2tap.vim
 
 " vbas2tap
-let s:version='0.11.0+201610302018'
+let s:version='0.12.0+201611051115'
 
 " This file is part of Vimclair BASIC
 " http://programandala.net/en.program.vimclair_basic.html
 
 " This file converts a Vimclair BASIC source to a TAP file
 
-" Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
+" --------------------------------------------------------------
+" Author and license
 
-" vbas2tap is free software; you can redistribute it and/or
-" modify it under the terms of the GNU General Public License as
-" published by the Free Software Foundation; either version 3 of
-" the License, or (at your option) any later version.
-"
-" vbas2tap is distributed in the hope that it will be useful,
-" but WITHOUT ANY WARRANTY; without even the implied warranty of
-" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-" GNU General Public License for more details.
-"
-" You should have received a copy of the GNU General Public
-" License along with vbas2tap; if not, see
-" <http://gnu.org/licenses>.
+" Copyright (C) 2014,2015,2016 Marcos Cruz (programandala.net)
 
-" ----------------------------------------------
+" You may do whatever you want with this work, so long as you retain
+" the copyright/authorship/acknowledgment/credit notice(s) and this
+" license in all redistributed copies and derived works.  There is no
+" warranty.
+
+" --------------------------------------------------------------
 " Description
 
 " vbas2tap converts a Vimclair BASIC source file
@@ -33,7 +27,7 @@ let s:version='0.11.0+201610302018'
 " More details in the <README.md> file and
 " <http://programandala.net/en.program.vimclair_basic.html>.
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 " Requirements
 
 " In order to convert the sources to a TAP file, this program
@@ -42,7 +36,7 @@ let s:version='0.11.0+201610302018'
 " empty or missing, no TAP will be created, but only the BAS
 " file).
 
-" ..............................
+" ..............................................
 " BAS2TAP (by Martijn van der Heide)
 
 " At the time of writing (2015-03), its latest version (v2.4,
@@ -58,14 +52,21 @@ let s:version='0.11.0+201610302018'
 "    strip bas2tap
 "    sudo mv bas2tap /usr/local/bin/
 
-" ..............................
+" ..............................................
 " zmakebas (by Russel Marks)
 
 " At the time of writing (2015-03), its latest version (1.2,
 " release 2004) is a package of Debian, Raspbian, Ubuntu and
-" probably other distros.
+" probably other distros.  Also the sources are easy to find
+" (example: https://github.com/catseye/zmakebas).
+"
+" The original code had a bug: The tokenization of `DEF FN`
+" doesn't include the required 5 bytes for each parameter. This
+" made `FN` fail. This bug was fixed by Antonio Villena in his
+" own version:
+" <http://sourceforge.net/p/emuscriptoria/code/HEAD/tree/desprot/ZMakeBas.c>.
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 
 function! VimclairClean()
 
@@ -94,7 +95,7 @@ function! VimclairClean()
 
 endfunction
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 " Control structures
 
 function! VimclairControlStructures()
@@ -493,7 +494,7 @@ function! VimclairProcedures()
 
 endfunction
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 " Metacommands
 
 function! VimclairDoVim(directive)
@@ -710,7 +711,7 @@ function! VimclairIfdef()
 
 endfunction
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 " Config commands
 
 function! VimclairConfig()
@@ -926,7 +927,7 @@ function! VimclairTAPMaker()
 
 endfunction
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 " Labels and line numbers
 
 function! VimclairLabels()
@@ -1038,7 +1039,7 @@ function! VimclairRenum()
 
 endfunction
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 " Token conversion
 
 function! VimclairTokens()
@@ -1059,7 +1060,7 @@ function! VimclairTokens()
 
 endfunction
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 " Character conversion
 
 function! VimclairBASinChars2BAS2TAP()
@@ -1231,7 +1232,7 @@ function! VimclairChars()
 
 endfunction
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 " BAS file
 
 function! VimclairBasFile()
@@ -1340,7 +1341,7 @@ function! VimclairTapFile()
 
 endfunction
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 " Generic functions
 
 function! Trim(input_string)
@@ -1350,7 +1351,7 @@ function! Trim(input_string)
   return substitute(a:input_string, '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 " Debug
 
 function! XXX(message)
@@ -1375,7 +1376,7 @@ function! VimclairSaveStep(description)
 
 endfunction
 
-" ----------------------------------------------
+" --------------------------------------------------------------
 " Main
 
 function! Vbas2tap()
