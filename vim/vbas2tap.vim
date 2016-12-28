@@ -1,7 +1,7 @@
 " vbas2tap.vim
 
 " vbas2tap
-let s:version='0.12.0+201611051115'
+let s:version='0.12.1+201612282007'
 
 " This file is part of Vimclair BASIC
 " http://programandala.net/en.program.vimclair_basic.html
@@ -576,7 +576,9 @@ function! VimclairInclude()
   let l:includedFiles=0 " Counter
   while search('^\s*#include\s\+','Wc')
     let l:includedFiles += 1
-    let l:filename=matchstr(getline('.'),'\S\+.*',8)
+    let l:include=getline('.')
+    let l:filenamePos=matchend(l:include,'^\s*#include\s\+')
+    let l:filename=strpart(l:include,l:filenamePos)
     call setline('.','// <<< start of included file '.l:filename)
     call append('.','// >>> end of included file '.l:filename)
     let l:filecontent=readfile(s:sourceFileDir.'/'.l:filename)
@@ -830,9 +832,9 @@ function! VimclairDefine()
   let s:definedTags=[] " a list for the '#define' tags
 
   call cursor(1,1) " Go to the top of the file.
-  while search('^\s*#define\>','Wc')
+  while search('^\s*#define\s\+','Wc')
     let l:definition=getline('.')
-    let l:tagPos=matchend(l:definition,'^\s*#define\s*')
+    let l:tagPos=matchend(l:definition,'^\s*#define\s\+')
     let l:tag=strpart(l:definition,l:tagPos)
     if !empty(l:tag)
       call add(s:definedTags,l:tag)
