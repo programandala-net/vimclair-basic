@@ -1,8 +1,43 @@
 = Vimclair BASIC
 :author: Marcos Cruz (programandala.net)
-:revdate: 2016-11-05
+:revdate: 2017-02-04
 
 // http://programandala.net/en.program.vimclair_basic.html[Vimclair BASIC],
+
+Vimclair BASIC is a Sinclair BASIC preprocessor that makes development
+easier.
+
+
+== Features
+
+* C-style block and line comments.
+* Bash-style line comments.
+* Labels instead of line numbers.
+* `#vim` directive to execute any Vim command in the source.
+* Long variable names for strings, arrays and `FOR` loops, using the
+  `#vim` directive to make the substitutions.
+* Control structures (can be nested):
+  ** `DO ... LOOP`
+  ** `DO ... LOOP UNTIL`
+  ** `DO ... LOOP WHILE`
+  ** `DO UNTIL... LOOP`
+  ** `DO UNTIL ... LOOP UNTIL`
+  ** `DO UNTIL ... LOOP WHILE`
+  ** `DO WHILE ... LOOP`
+  ** `DO WHILE ... LOOP UNTIL`
+  ** `DO WHILE ... LOOP WHILE`
+  ** `EXIT DO`
+  ** `EXIT FOR`
+  ** `IF ... THEN ... ENDIF`
+  ** `IF ... THEN ... ELSE ... ENDIF`
+  ** `IF ... THEN ... ELSE IF ... ELSE ... ENDIF` (with any number of
+    `ELSE IF`)
+* Procedures (without parameters):
+  ** `DEF PROC`, `END PROC`, `EXIT PROC`, `CALL`.
+* Procedures with parameters can be simulated ad hoc with the `#vim`
+  directive.
+* The `CALL` command can be changed with `#procedureCall`, e.g.:
+  `#procedureCall proc` or even make it empty: `#procedureCall`.
 
 == Files
 
@@ -22,6 +57,10 @@ The `vim/` directory contains Vim specific files:
 
 == Requirements
 
+The preprocessing of the source is done by http://vim.org[Vim], so it
+must be installed in the system, even if other editor is used to edit
+the sources.
+
 In order to convert the sources to a TAP file, Vimclair BASIC needs
 either BAS2TAP (by Martijn van der Heide) or zmakebas (by Russel
 Marks).  The `#tapmaker` directive is used to choose one of them; if
@@ -35,7 +74,7 @@ At the time of writing (2016-11), its latest version (v2.6, release
 http://www.worldofspectrum.org/[World of Spectrum].
 
 This is how I compiled and installed BAS2TAP on
-Raspbian and Debian:
+http://raspbian.org[Raspbian] and http://debian.org[Debian]:
 
 ----
    gcc -Wall -O2 bas2tap.c -o bas2tap -lm
