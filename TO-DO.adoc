@@ -1,6 +1,6 @@
 = Vimclair BASIC To-Do List
 :author: Marcos Cruz (programandala.net)
-:revdate: 2017-02-04
+:revdate: 2017-09-11
 
 This file is part of
 http://programandala.net/en.program.vimclair_basic.html[Vimclair
@@ -44,7 +44,9 @@ BASIC], by Marcos Cruz (programandala.net).
 - `#quiet` directive.
 - Make tracing optional (`#tracing` directive?).
 - Directive for size optimization. Then `VAL` will be added to line
-  numbers and others (or substituted with `INT PI`, `SGN PI`...).
+  numbers and others (or replaced by `INT PI`, `SGN PI`...).
 - Export the labels as Vimclair BASIC `#vim` directives, in order to
   reuse them in related programs.
 - Write an installer.
+- Add ".bas" keymap to create just a BAS file instead of a TAP file.
+- Add <vbas2bas.sh> to create just a BAS file instead of a TAP file,

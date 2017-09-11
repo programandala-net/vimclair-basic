@@ -21,6 +21,7 @@
 # 2015-02-09: First version.
 # 2015-02-10: File error checking.
 # 2015-02-11: Vim options are improved.
+# 2017-09-12: Fix typo.
 
 # ##############################################################
 # To-do
@@ -68,7 +69,7 @@ fi
 #      preventing Vim from clearing the screen).
 # -n = No swap file will be used. This makes it possible
 #      to convert a file currently open by other instance of Vim,
-#      without the used to be asked for confirmation.
+#      without asking the user for confirmation.
 # -s = Silent mode (does not affect BAS2TAP messages).
 # -S = Vim file to be sourced after the first file has been read.
 # -c = Vim command to be executed after the first file has been read.
